@@ -92,14 +92,12 @@ Options Activity
 Inputs {.sidebar}
 -------------------------------------
 
+View top bullish/bearish tickers by option activity.
+Select tickers from right table to view activity or search tickers in searchbox.
+
 ```{r page1 sidebar}
 
 ## Add checkboxes
-# BUYING ACTIVITY
-checkboxInput("buying_activity", "Option Buying Activity",value = TRUE)
-                        
-# SELLING ACTIVITY
-checkboxInput("selling_activity", "Option Selling Activity",value = TRUE)
 
 sliderInput("table_rows", label = "Limit Tickers:",
             min = 5, max = 20, value = 10, step = 1)
@@ -113,26 +111,21 @@ dateRangeInput("daterange2", "Chart Date Range:",
                start = Sys.Date()-254,
                end = Sys.Date())
 
-textInput("inText","Ticker Search:","")
-
-# actionButton("goButton",
-#               "Search", class = "btn btn-lg btn-primary", 
-#              onclick="location.href=#Second Section;")
-
-actionButton("clickMe", label = "Search", class = "btn btn-lg btn-primary", 
-             onclick="location.href='#section-technicals';")
+textInput("inText","Ticker Search (clear for table selection):","")
 
 ##############################################################
-selectedData <- reactive({
-
+selectedData_src <- reactive({
+    
     start <- input$daterange1[1]
     end <- input$daterange1[2]
   
     g_file_sub <- g_file[g_file$TradeDate<=end &
                          g_file$TradeDate>=start,]
-  
-    #Create top bullish trade table
-    g_file_sub %>% 
+    
+})
+
+selectedData <- reactive({
+    selectedData_src() %>%
         group_by(Ticker) %>%
         summarise(
           Bullish = sum(ifelse(OptionType %in% "Calls" & ActivityType %in% "BUYING" |
@@ -152,7 +145,7 @@ selectedData <- reactive({
   
   
     #Create top bearish trade table
-    g_file_sub %>% 
+    selectedData_src() %>%
         group_by(Ticker) %>%
         summarise(
           Bullish = sum(ifelse(OptionType %in% "Calls" & ActivityType %in% "BUYING" |
@@ -171,8 +164,8 @@ selectedData <- reactive({
       g_file_sub_bottom$Direction <- ifelse(g_file_sub_bottom$Bear_Bull_Ratio>0,"up","down")
         
       #Merge top bearish trade table with top bullish trade table  
-        g_file_sub_all <- rbind(g_file_sub_top,g_file_sub_bottom)
-        g_file_sub_all %>% arrange(desc(Bear_Bull_Ratio)) -> g_file_sub_all
+    g_file_sub_all <- rbind(g_file_sub_top,g_file_sub_bottom)
+    g_file_sub_all %>% arrange(desc(Bear_Bull_Ratio)) -> g_file_sub_all
 })
 ```
 
@@ -217,71 +210,38 @@ Row
 
 ```{r activity on selected ticker}
 
-selectedData2 <- reactive({
-    start <- input$daterange1[1]
-    end <- input$daterange1[2]
-  
-    g_file_sub <- g_file[g_file$TradeDate<=end &
-                         g_file$TradeDate>=start,]
-  
-    ################################################################
-    g_file_sub %>% 
-        group_by(Ticker) %>%
-        summarise(
-          Bullish = sum(ifelse(OptionType %in% "Calls" & ActivityType %in% "BUYING" |
-                               OptionType %in% "Puts" & ActivityType %in% "SELLING",1,0)),
-          Bearish = sum(ifelse(OptionType %in% "Puts" & ActivityType %in% "BUYING" |
-                               OptionType %in% "Calls" & ActivityType %in% "SELLING",1,0)),
-          Bull_Ratio = round(ifelse(Bearish!=0,Bullish/Bearish,Bullish/1),1),
-          Bear_Ratio = round(ifelse(Bullish!=0,Bearish/Bullish,Bearish/1),1),
-          Bear_Bull_Ratio = ifelse(Bull_Ratio==Bear_Ratio,0,
-                                   ifelse(Bull_Ratio>Bear_Ratio,Bull_Ratio,-Bear_Ratio))) %>% 
-          select(
-              Ticker,Bear_Bull_Ratio,Bullish,Bearish
-            ) %>%
-          arrange(desc(Bear_Bull_Ratio)) -> g_file_sub_top
-        g_file_sub_top <- head(g_file_sub_top,input$table_rows)
-        g_file_sub_top$Direction <- ifelse(g_file_sub_top$Bear_Bull_Ratio>0,"up","down")
-  
-  
-    g_file_sub %>% 
-        group_by(Ticker) %>%
-        summarise(
-          Bullish = sum(ifelse(OptionType %in% "Calls" & ActivityType %in% "BUYING" |
-                               OptionType %in% "Puts" & ActivityType %in% "SELLING",1,0)),
-          Bearish = sum(ifelse(OptionType %in% "Puts" & ActivityType %in% "BUYING" |
-                               OptionType %in% "Calls" & ActivityType %in% "SELLING",1,0)),
-          Bull_Ratio = round(ifelse(Bearish!=0,Bullish/Bearish,Bullish/1),1),
-          Bear_Ratio = round(ifelse(Bullish!=0,Bearish/Bullish,Bearish/1),1),
-          Bear_Bull_Ratio = ifelse(Bull_Ratio==Bear_Ratio,0,
-                                   ifelse(Bull_Ratio>Bear_Ratio,Bull_Ratio,-Bear_Ratio))) %>%
-          select(
-              Ticker,Bear_Bull_Ratio,Bullish,Bearish
-            ) %>%
-          arrange(Bear_Bull_Ratio) -> g_file_sub_bottom
-          g_file_sub_bottom <- head(g_file_sub_bottom,input$table_rows)
-          g_file_sub_bottom$Direction <- ifelse(g_file_sub_bottom$Bear_Bull_Ratio>0,"up","down")
-          
-        g_file_sub_all <- rbind(g_file_sub_top,g_file_sub_bottom)
-        g_file_sub_all %>% arrange(desc(Bear_Bull_Ratio)) -> g_file_sub_all
-        
-    ################################################################
-        
-    ticker <- g_file_sub_all[input$tbl1_rows_selected,]$Ticker
-    g_file_sub <- g_file_sub %>% arrange(Ticker,desc(TradeDate))
-    g_file_sub <- g_file_sub[g_file_sub$Ticker==ticker,]
-    g_file_sub <- g_file_sub[,c("Ticker","TradeDate","OptionType","ActivityType",
-                                "ExpDate","Strike","InitialVolume","EarningsDate")]
-    g_file_sub
-        
-})
+try(selectedData2 <- reactive({
+    
+        #View Activity via table selection
+    if (nchar(input$inText)<1){
 
-renderDataTable({
-    selectedData2()
+        row_selected <- input$tbl1_rows_selected
+        ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+        g_file_sub <- selectedData_src() %>% arrange(Ticker,desc(TradeDate))
+        g_file_sub <- g_file_sub[g_file_sub$Ticker==ticker,]
+        g_file_sub <- g_file_sub[,c("Ticker","TradeDate","OptionType","ActivityType",
+                                    "ExpDate","Strike","InitialVolume","EarningsDate")]
+        g_file_sub
+
+        #View Activity via Custom Search        
+    } else {
+        
+        ticker <- toupper(input$inText)
+        g_file_sub <- selectedData_src() %>% arrange(Ticker,desc(TradeDate))
+        g_file_sub <- g_file_sub[g_file_sub$Ticker==ticker,]
+        g_file_sub <- g_file_sub[,c("Ticker","TradeDate","OptionType","ActivityType",
+                                    "ExpDate","Strike","InitialVolume","EarningsDate")]
+        g_file_sub
+    }
+}),silent=TRUE)
+
+
+try(renderDataTable({
+        try(selectedData2(),silent=TRUE)
 },
 options = list(
     scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
-)
+),silent=TRUE)
 
 ```
 
@@ -291,56 +251,15 @@ options = list(
 
 chart <- reactive({
     ##################### 
-    start <- input$daterange1[1]
-    end <- input$daterange1[2]
-  
-    g_file_sub <- g_file[g_file$TradeDate<=end &
-                         g_file$TradeDate>=start,]
-  
-    g_file_sub %>% 
-        group_by(Ticker) %>%
-        summarise(
-          Bullish = sum(ifelse(OptionType %in% "Calls" & ActivityType %in% "BUYING" |
-                               OptionType %in% "Puts" & ActivityType %in% "SELLING",1,0)),
-          Bearish = sum(ifelse(OptionType %in% "Puts" & ActivityType %in% "BUYING" |
-                               OptionType %in% "Calls" & ActivityType %in% "SELLING",1,0)),
-          Bull_Ratio = round(ifelse(Bearish!=0,Bullish/Bearish,Bullish/1),1),
-          Bear_Ratio = round(ifelse(Bullish!=0,Bearish/Bullish,Bearish/1),1),
-          Bear_Bull_Ratio = ifelse(Bull_Ratio==Bear_Ratio,0,
-                                   ifelse(Bull_Ratio>Bear_Ratio,Bull_Ratio,-Bear_Ratio))) %>% 
-          select(
-              Ticker,Bear_Bull_Ratio,Bullish,Bearish
-            ) %>%
-          arrange(desc(Bear_Bull_Ratio)) -> g_file_sub_top
-        g_file_sub_top <- head(g_file_sub_top,input$table_rows)
-        g_file_sub_top$Direction <- ifelse(g_file_sub_top$Bear_Bull_Ratio>0,"up","down")
-  
-  
-    g_file_sub %>% 
-        group_by(Ticker) %>%
-        summarise(
-          Bullish = sum(ifelse(OptionType %in% "Calls" & ActivityType %in% "BUYING" |
-                               OptionType %in% "Puts" & ActivityType %in% "SELLING",1,0)),
-          Bearish = sum(ifelse(OptionType %in% "Puts" & ActivityType %in% "BUYING" |
-                               OptionType %in% "Calls" & ActivityType %in% "SELLING",1,0)),
-          Bull_Ratio = round(ifelse(Bearish!=0,Bullish/Bearish,Bullish/1),1),
-          Bear_Ratio = round(ifelse(Bullish!=0,Bearish/Bullish,Bearish/1),1),
-          Bear_Bull_Ratio = ifelse(Bull_Ratio==Bear_Ratio,0,
-                                   ifelse(Bull_Ratio>Bear_Ratio,Bull_Ratio,-Bear_Ratio))) %>%
-          select(
-              Ticker,Bear_Bull_Ratio,Bullish,Bearish
-            ) %>%
-          arrange(Bear_Bull_Ratio) -> g_file_sub_bottom
-          g_file_sub_bottom <- head(g_file_sub_bottom,input$table_rows)
-          g_file_sub_bottom$Direction <- ifelse(g_file_sub_bottom$Bear_Bull_Ratio>0,"up","down")
-          
-    g_file_sub_all <- rbind(g_file_sub_top,g_file_sub_bottom)
-    g_file_sub_all %>% arrange(desc(Bear_Bull_Ratio)) -> g_file_sub_all
-    
-    #####################
-
-    ticker <- g_file_sub_all[input$tbl1_rows_selected,]$Ticker 
-
+    if (nchar(input$inText)<1){
+        row_selected <- input$tbl1_rows_selected
+        ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+    } else {
+        ticker <- toupper(input$inText)
+    }
+        
+    g_file_sub <- selectedData_src()
+    g_file_sub <- g_file_sub[g_file_sub$Ticker==ticker,]
     selected_df <- g_file_sub[g_file_sub$Ticker==ticker,]
 
     #query for quotes
@@ -465,14 +384,11 @@ chart <- reactive({
     }
     
     p1
-
-    # print(p1)
                         
     })
 
 renderPlot({
-    # try(chart(),silent=TRUE)
-    chart()
+    try(chart(),silent=TRUE)
         })
 
 ```
@@ -1633,9 +1549,10 @@ TO DO LIST
 
 Options Activity
     * Add Ticker Search Functionality
+        - Added
     * Check that all trade dates for selected ticker are showing
         - Checked and confirmed
-    * Add BUYING/SELLING checkbox logic
+    * Add bottom bullish/bearish guage
     
 Technicals - Chart
     * Add more date tick-mark intervals to X axis
