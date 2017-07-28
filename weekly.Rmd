@@ -1,0 +1,67 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r cars}
+
+getSymbols("PANW")
+mondays = as.POSIXlt(time(PANW))$wday == 1
+fridays = as.POSIXlt(time(PANW))$wday == 5
+
+indx_mondays <- c(0, which(mondays))
+indx_fridays <- c(0, which(fridays))
+
+open <- PANW[,1]
+open$index = 1:nrow(open)
+open$mondays <- indx_mondays[match(open$index,indx_mondays)]
+open$fridays <- indx_fridays[match(open$index,indx_fridays)]
+
+high <- PANW[,2]
+low <- PANW[,3]
+close <- PANW[,4]
+adj <- PANW[,6]
+
+all <- cbind(open,high,low,close,adj)
+
+all$week_num <- ""
+
+week = 0
+for (i in 1:nrow(all)){
+    if(!is.na(all$mondays[i])){
+        week = week + 1
+        all$week_num[i] <- week
+    }    
+}
+
+week = 0
+for (i in 1:nrow(all)){
+    if(!is.na(all$week_num[i])){
+        week = all$week_num[i]
+    }  else {
+        all$week_num[i] <- week
+    }  
+}
+
+colnames(all) <- gsub("PANW.","",colnames(all))
+
+all <- as.data.frame(all)
+all$Date <- row.names(all)
+
+all %>% group_by(week_num) %>%
+    summarise(
+        date = first(Date),
+        open = first(Open),
+        low = min(Low),
+        high = max(High),
+        close = last(Close)
+    )
+
+
+
+```
+
