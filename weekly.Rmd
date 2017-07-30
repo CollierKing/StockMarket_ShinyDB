@@ -9,59 +9,114 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r cars}
 
-getSymbols("PANW")
-mondays = as.POSIXlt(time(PANW))$wday == 1
-fridays = as.POSIXlt(time(PANW))$wday == 5
+ticker <- "AAPL"
+
+input <- tq_get(ticker, get = "stock.prices", from = start, to = end)
+
+mondays = as.POSIXlt(input$date)$wday == 1
+tuesdays = as.POSIXlt(input$date)$wday == 2
+wednesdays = as.POSIXlt(input$date)$wday == 3
+thursdays = as.POSIXlt(input$date)$wday == 4
+fridays = as.POSIXlt(input$date)$wday == 5
 
 indx_mondays <- c(0, which(mondays))
+indx_tuesdays <- c(0, which(tuesdays))
+indx_wednesdays <- c(0, which(wednesdays))
+indx_thursdays <- c(0, which(thursdays))
 indx_fridays <- c(0, which(fridays))
 
-open <- PANW[,1]
+open <- input[,1]
 open$index = 1:nrow(open)
-open$mondays <- indx_mondays[match(open$index,indx_mondays)]
-open$fridays <- indx_fridays[match(open$index,indx_fridays)]
 
-high <- PANW[,2]
-low <- PANW[,3]
-close <- PANW[,4]
-adj <- PANW[,6]
+input$mondays <- indx_mondays[match(open$index,indx_mondays)]
+input$tuesdays <- indx_tuesdays[match(open$index,indx_tuesdays)]
+input$wednesdays <- indx_wednesdays[match(open$index,indx_wednesdays)]
+input$thursdays <- indx_thursdays[match(open$index,indx_thursdays)]
+input$fridays <- indx_fridays[match(open$index,indx_fridays)]
 
-all <- cbind(open,high,low,close,adj)
+input$weekday <- ifelse(!is.na(input$mondays),1,
+                       ifelse(!is.na(input$tuesdays),2,
+                       ifelse(!is.na(input$wednesdays),3,
+                       ifelse(!is.na(input$thursdays),4,
+                       ifelse(!is.na(input$fridays),5,NA)))))
 
-all$week_num <- ""
+input$week_num <- NA
+
 
 week = 0
-for (i in 1:nrow(all)){
-    if(!is.na(all$mondays[i])){
+for (i in 1:nrow(input)){
+    if(input$weekday[i]>input$weekday[i+1]){
         week = week + 1
-        all$week_num[i] <- week
-    }    
-}
-
-week = 0
-for (i in 1:nrow(all)){
-    if(!is.na(all$week_num[i])){
-        week = all$week_num[i]
+        input$week_num[i+1] <- week
     }  else {
-        all$week_num[i] <- week
+        input$week_num[i+1] <- week
     }  
 }
 
-colnames(all) <- gsub("PANW.","",colnames(all))
+#patch up
+input$week_num[1] <- input$week_num[2]
 
-all <- as.data.frame(all)
-all$Date <- row.names(all)
+# all <- as.data.frame(all)
+# all$Date <- row.names(all)
 
-all %>% group_by(week_num) %>%
+input %>% group_by(week_num) %>%
     summarise(
-        date = first(Date),
-        open = first(Open),
-        low = min(Low),
-        high = max(High),
-        close = last(Close)
-    )
+        size = n(),
+        date = first(date),
+        open = first(open),
+        low = min(low),
+        high = max(high),
+        close = last(close),
+        adjusted = last(adjusted),
+        volume = sum(volume)
+    ) -> input
+```
 
+```{r add indicators}
+
+# input <- weekly
+
+try(input$ma50 <- SMA(input$close,50),silent=TRUE)
+try(input$ma21 <- SMA(input$close,21),silent=TRUE)
+try(input$ma9 <- SMA(input$close,9),silent=TRUE)
+try(bbands <- as.data.frame(BBands(input$close, n=20,sd=2)),silent=TRUE)
+try(bbands <- bbands[,c("up","dn")],silent = TRUE)
+try(input <- cbind(input,bbands),silent = TRUE)
+input$pos_neg <- ifelse(input$adjusted>lag(input$adjusted,1),"red","green")
+try(input$RSI <- RSI(input$adjusted))
+try(macd <- as.data.frame(MACD(input$adjusted)))
+try(input <- cbind(input,macd),silent = TRUE)
+try(input$macd_delt <- input$macd-input$signal)
+    
+    
 
 
 ```
+
+```{r cars}
+
+library(ggplot2)
+library(scales)
+library(bdscale)
+library(cowplot)
+
+weekly$date <- as.Date(weekly$date)
+
+ ggplot(weekly, aes(x=date, ymin=low, ymax=high, lower=pmin(open,close), 
+            upper=pmax(open,close), fill=open<close, group=1, middle=pmin(open,close))) + 
+            geom_boxplot(stat='identity') +
+            # theme_dark() +
+            ggtitle(paste0(ticker,": Daily")) +
+            xlab('') + 
+            ylab('') + 
+            theme(legend.position='none') +
+            scale_x_bd(business.dates=weekly$date, max.major.breaks=10, labels=date_format("%b '%y")) 
+
+
+
+# ggplot(weekly, aes(x=date, ymin=low, ymax=high, lower=pmin(open,close), upper=pmax(open,close), fill=open<close, group=1, middle=pmin(open,close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=weekly$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank(),axis.text.x = element_blank()) + background_grid(major = "xy",minor = "none")
+# 
+
+```
+
 

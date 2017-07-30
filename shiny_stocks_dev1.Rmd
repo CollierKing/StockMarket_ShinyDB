@@ -453,6 +453,12 @@ dateRangeInput("daterange3", "Chart Date Range:",
                start = Sys.Date()-254,
                end = Sys.Date())
 
+
+selectInput("time_frame", label = "Select Timeframe: ",
+             list(`Daily` = "Daily",
+                `Weekly` = "Weekly"), selected = "Daily")
+
+
 textInput("inText2","Ticker Search:","")
 
 # actionButton("clickMe2", label = "Search", class = "btn btn-lg btn-primary", 
@@ -478,7 +484,70 @@ techPlot1 <- eventReactive(input$clickMe2,{
     start <- input$daterange3[1]
     end <- input$daterange3[2]
     
-    input <- tq_get(ticker, get = "stock.prices", from = start, to = end)
+    if (input$time_frame=="Daily"){
+    
+        input <- tq_get(ticker, get = "stock.prices", from = start, to = end)
+    
+    } else {
+        
+        #reformat for weekly time frame
+        input <- tq_get(ticker, get = "stock.prices", from = start, to = end)
+        
+        mondays = as.POSIXlt(input$date)$wday == 1
+        tuesdays = as.POSIXlt(input$date)$wday == 2
+        wednesdays = as.POSIXlt(input$date)$wday == 3
+        thursdays = as.POSIXlt(input$date)$wday == 4
+        fridays = as.POSIXlt(input$date)$wday == 5
+        
+        indx_mondays <- c(0, which(mondays))
+        indx_tuesdays <- c(0, which(tuesdays))
+        indx_wednesdays <- c(0, which(wednesdays))
+        indx_thursdays <- c(0, which(thursdays))
+        indx_fridays <- c(0, which(fridays))
+        
+        open <- input[,1]
+        open$index = 1:nrow(open)
+        
+        input$mondays <- indx_mondays[match(open$index,indx_mondays)]
+        input$tuesdays <- indx_tuesdays[match(open$index,indx_tuesdays)]
+        input$wednesdays <- indx_wednesdays[match(open$index,indx_wednesdays)]
+        input$thursdays <- indx_thursdays[match(open$index,indx_thursdays)]
+        input$fridays <- indx_fridays[match(open$index,indx_fridays)]
+        
+        input$weekday <- ifelse(!is.na(input$mondays),1,
+                               ifelse(!is.na(input$tuesdays),2,
+                               ifelse(!is.na(input$wednesdays),3,
+                               ifelse(!is.na(input$thursdays),4,
+                               ifelse(!is.na(input$fridays),5,NA)))))
+        input$week_num <- NA
+        
+        week = 0
+        try(for (i in 1:nrow(input)){
+            if(input$weekday[i]>input$weekday[i+1]){
+                week = week + 1
+                input$week_num[i+1] <- week
+            }  else {
+                input$week_num[i+1] <- week
+            }  
+        },silent=FALSE)
+        
+        #patch up
+        input$week_num[1] <- input$week_num[2]
+        
+        input %>% group_by(week_num) %>%
+            summarise(
+                size = n(),
+                date = first(date),
+                open = first(open),
+                low = min(low),
+                high = max(high),
+                close = last(close),
+                adjusted = last(adjusted),
+                volume = sum(volume)
+            ) -> input
+        
+    }
+    
      #add technical indicators
     try(input$ma50 <- SMA(input$close,50),silent=TRUE)
     try(input$ma21 <- SMA(input$close,21),silent=TRUE)
@@ -492,15 +561,13 @@ techPlot1 <- eventReactive(input$clickMe2,{
     try(input <- cbind(input,macd),silent = TRUE)
     try(input$macd_delt <- input$macd-input$signal)
     
+    #VOLATILITY
     # input$log_ret <- log10(input$adjusted/lag(input$adjusted,1))
     # input$volatility <- input$log_ret
     
     # library(TTR)
-    
     # input$volatility <- runSD(input$log_ret,252)*sqrt(252)
 
-    
-    
     p1 <- ggplot(input, aes(x=date, ymin=low, ymax=high, lower=pmin(open,close), upper=pmax(open,close), fill=open<close, group=1, middle=pmin(open,close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank(),axis.text.x = element_blank()) + background_grid(major = "xy",minor = "none")
     
     ## ADD TECHNICAL INDICATORS
