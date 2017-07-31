@@ -1,0 +1,178 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(Quandl)
+library(grid)
+
+Quandl.api_key(" qSAUD4UYgpSUz_Bbxv6v")
+
+fundamentals_c = Quandl.datatable("ZACKS/FC", ticker="AAPL")
+fundamentals_r = Quandl.datatable("ZACKS/FR", ticker="AAPL")
+fundamentals_c <- fundamentals_c[fundamentals_c$per_type=="Q",]
+fundamentals_r <- fundamentals_r[fundamentals_r$per_type=="Q",]
+
+
+```
+
+## Profitability Ratios
+
+```{r quandl-ratios}
+## Profitability Ratios
+########################
+# Gross Margin
+g_gm <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=gross_margin))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Gross Margin") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = gross_margin), linetype=2,alpha=0.8)
+
+# Operating Profit Margin
+g_om <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=oper_profit_margin))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Operating Profit Margin") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = oper_profit_margin), linetype=2,alpha=0.8)
+
+#EBIT Margin
+g_em <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=ebit_margin))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("EBIT Margin") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = ebit_margin), linetype=2,alpha=0.8)
+
+#Return on Assets
+g_roa <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=ret_asset))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("ROA") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = ret_asset), linetype=2,alpha=0.8)
+
+#Return on Equity
+g_roe <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=ret_equity))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("ROE") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = ret_equity), linetype=2,alpha=0.8)
+
+#Return on Investment
+g_roi <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=ret_invst))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("ROI") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = ret_invst), linetype=2,alpha=0.8)
+
+#FCF per share
+g_fcf_sh <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=free_cash_flow_per_share))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("FCF/Share") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = free_cash_flow_per_share), linetype=2,alpha=0.8)
+
+#BV per share
+g_bv_sh <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=book_val_per_share))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("BV/Share") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = book_val_per_share), linetype=2,alpha=0.8)
+
+#Op.CF per share
+g_ocf_sh <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=oper_cash_flow_per_share))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Opp. CF/Share") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = oper_cash_flow_per_share), linetype=2,alpha=0.8)
+
+
+# grid.newpage()
+# grid.draw(rbind(ggplotGrob(g1), ggplotGrob(g2),ggplotGrob(g3), size = "last"))
+```
+
+## Activity Ratios
+
+```{r activity ratios}
+## Activity Ratios
+########################
+# Asset Turnover
+g_ato <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=asset_turn))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Asset Turnover") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = asset_turn), linetype=2,alpha=0.8)
+
+# Inventory Turnover
+g_into <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=invty_turn))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Inventory Turnover") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = invty_turn), linetype=2,alpha=0.8)
+
+# Receivables Turnover
+g_recto <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=rcv_turn))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Receivables Turnover") +
+    geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = rcv_turn), linetype=2,alpha=0.8)
+
+# ????
+# g_recto <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=day_sale_rcv))+
+#   theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Days Turnover") +
+#     geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+#   geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = day_sale_rcv), linetype=2,alpha=0.8)
+
+```
+
+## Liquidity/Solvency Ratios
+
+```{r liquidity/solvency ratios}
+
+## Liquidity & Solvency Ratios
+########################
+# Current Ratio
+g_curr <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=curr_ratio))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Current Ratio") + geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = curr_ratio), linetype=2,alpha=0.8)
+
+# LT Debt Cap
+g_ltdebt_cap <- ggplot(data=fundamentals_r, aes(x=per_end_date,y=lterm_debt_cap))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("LT Debt-Capital Ratio") + geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) + geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = lterm_debt_cap), linetype=2,alpha=0.8)
+
+# Debt to Equity
+g_debt_equity <- ggplot(data=fundamentals_r, aes(x=per_end_date,y=tot_debt_tot_equity))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Debt-Equity Ratio") + geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) + geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = tot_debt_tot_equity), linetype=2,alpha=0.8)
+
+```
+
+## Non-Ratios
+
+```{r non-ratios}
+
+# FCF
+g_fcf <-ggplot(data=fundamentals_r, aes(x=per_end_date,y=free_cash_flow))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("FCF") + geom_point(data=fundamentals_r[nrow(fundamentals_r),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_r[nrow(fundamentals_r),], aes(yintercept = free_cash_flow), linetype=2,alpha=0.8)
+
+#Total Revenue
+g_rev <-ggplot(data=fundamentals_c, aes(x=per_end_date,y=tot_revnu))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Revenue") + geom_point(data=fundamentals_c[nrow(fundamentals_c),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_c[nrow(fundamentals_c),], aes(yintercept = tot_revnu), linetype=2,alpha=0.8)
+
+#COGS
+g_cogs <-ggplot(data=fundamentals_c, aes(x=per_end_date,y=cost_good_sold))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("COGS") + geom_point(data=fundamentals_c[nrow(fundamentals_c),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_c[nrow(fundamentals_c),], aes(yintercept = cost_good_sold), linetype=2,alpha=0.8)
+
+#Gross Profit
+g_gross_profit <-ggplot(data=fundamentals_c, aes(x=per_end_date,y=gross_profit))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Gross Profit") + geom_point(data=fundamentals_c[nrow(fundamentals_c),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_c[nrow(fundamentals_c),], aes(yintercept = gross_profit), linetype=2,alpha=0.8)
+
+#Operating Income
+g_oper_inc <-ggplot(data=fundamentals_c, aes(x=per_end_date,y=oper_income))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Operating Income") + geom_point(data=fundamentals_c[nrow(fundamentals_c),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_c[nrow(fundamentals_c),], aes(yintercept = oper_income), linetype=2,alpha=0.8)
+
+#Total Operating Expenses
+g_oper_exp <-ggplot(data=fundamentals_c, aes(x=per_end_date,y=tot_oper_exp))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Operating Expenses") + geom_point(data=fundamentals_c[nrow(fundamentals_c),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_c[nrow(fundamentals_c),], aes(yintercept = tot_oper_exp), linetype=2,alpha=0.8)
+
+# Employee Count
+g_empl_cnt <-ggplot(data=fundamentals_c, aes(x=per_end_date,y=emp_cnt))+
+  theme_minimal()+geom_line(color="black") + geom_point(color="blue")  + xlab("") + ylab("Employee Count") + geom_point(data=fundamentals_c[nrow(fundamentals_c),], color="red", size=6, alpha=0.7) +
+  geom_hline(data =fundamentals_c[nrow(fundamentals_c),], aes(yintercept = emp_cnt), linetype=2,alpha=0.8)
+
+
+```
