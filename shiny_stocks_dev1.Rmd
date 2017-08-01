@@ -1155,6 +1155,10 @@ dateRangeInput("daterange5", "Data Date Range:",
 
 textInput("inText4","Ticker Search:","")
 
+selectInput("time_frame2", label = "Select Timeframe: ",
+             list(`Daily` = "Daily",
+                `Weekly` = "Weekly"), selected = "Daily")
+
 actionButton("clickMe4", label = "Search")
 ```
 
@@ -1187,6 +1191,8 @@ event_chart <- reactive({
                   tot_days = n()) %>% 
             filter (return !=0) -> event_summ_tbl
         # filter out erroneous crosses (where opposite cross happened)
+        event_summ_tbl[[event]] <- as.numeric(row.names(event_summ_tbl))
+        event_summ_tbl[[event]] <- as.factor(event_summ_tbl[[event]])
         
         #compute mean & standard deviations (return)
         return_mean <- mean(event_summ_tbl$return)
@@ -1197,11 +1203,11 @@ event_chart <- reactive({
         
         g1 <- ggplot(event_summ_tbl, aes(x=event_summ_tbl[,1], y=return)) +
         geom_bar(stat='identity',width=.5) + xlab(paste0("Occurance count: ",event)) +
-            geom_ribbon(aes(ymin = return_mean - return_sd, ymax = return_mean + return_sd,group=1), fill = "grey70",alpha=0.3) + geom_line(aes(y = return_mean),colour="red",group=1) + ggtitle("Farthest Return Distribution")
+            geom_ribbon(aes(ymin = return_mean - return_sd, ymax = return_mean + return_sd,group=1), fill = "grey70",alpha=0.3) + geom_line(aes(y = return_mean),colour="red",group=1) + ggtitle("Farthest Return Distribution") + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1])))
         
         g2 <- ggplot(event_summ_tbl, aes(x=event_summ_tbl[,1], y=min_day)) +
         geom_bar(stat='identity',width=.5) + xlab(paste0("Occurance count: ",event)) +
-            geom_ribbon(aes(ymin = day_mean - day_sd, ymax = day_mean + day_sd,group=1), fill = "grey70",alpha=0.3)  + geom_line(aes(y = day_mean),colour="red",group=1) + ggtitle("Farthest Day Distribution")
+            geom_ribbon(aes(ymin = day_mean - day_sd, ymax = day_mean + day_sd,group=1), fill = "grey70",alpha=0.3)  + geom_line(aes(y = day_mean),colour="red",group=1) + ggtitle("Farthest Day Distribution") + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1])))
 
     } else {
         # subset for rows with over condition
@@ -1219,6 +1225,8 @@ event_chart <- reactive({
                   tot_days = n())  %>% 
             filter (return !=0) -> event_summ_tbl
             # filter out erroneous crosses (where opposite cross happened)
+        event_summ_tbl[[event]] <- as.numeric(row.names(event_summ_tbl))
+        event_summ_tbl[[event]] <- as.factor(event_summ_tbl[[event]])
         
         #compute mean & standard deviations (return)
         return_mean <- mean(event_summ_tbl$return)
@@ -1227,13 +1235,13 @@ event_chart <- reactive({
         day_mean <- mean(event_summ_tbl$max_day)
         day_sd <- sd(event_summ_tbl$max_day)
 
-        g1 <- ggplot(event_summ_tbl, aes(x=row.names(event_summ_tbl), y=return)) +
+        g1 <- ggplot(event_summ_tbl, aes(x=event_summ_tbl[,1], y=return)) +
         geom_bar(stat='identity',width=.5) + xlab(paste0("Occurance count: ",event)) +
-            geom_ribbon(aes(ymin = return_mean - return_sd, ymax = return_mean + return_sd,group=1), fill = "grey70",alpha=0.3) + geom_line(aes(y = return_mean),colour="red",group=1) + ggtitle("Farthest Return Distribution")
+            geom_ribbon(aes(ymin = return_mean - return_sd, ymax = return_mean + return_sd,group=1), fill = "grey70",alpha=0.3) + geom_line(aes(y = return_mean),colour="red",group=1) + ggtitle("Farthest Return Distribution") + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1])))
             
-        g2 <- ggplot(event_summ_tbl, aes(x=row.names(event_summ_tbl), y=max_day)) +
+        g2 <- ggplot(event_summ_tbl, aes(x=event_summ_tbl[,1], y=max_day)) +
         geom_bar(stat='identity',width=.5) + xlab(paste0("Occurance count: ",event)) +
-            geom_ribbon(aes(ymin = day_mean - day_sd, ymax = day_mean + day_sd,group=1), fill = "grey70",alpha=0.3)  + geom_line(aes(y = day_mean),colour="red",group=1) + ggtitle("Farthest Day Distribution")
+            geom_ribbon(aes(ymin = day_mean - day_sd, ymax = day_mean + day_sd,group=1), fill = "grey70",alpha=0.3)  + geom_line(aes(y = day_mean),colour="red",group=1) + ggtitle("Farthest Day Distribution") + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1])))
         
     }
 
@@ -1260,9 +1268,71 @@ event_summ_all <- eventReactive(input$clickMe4,{
     start <- input$daterange5[1]
     end <- input$daterange5[2]
     
-    input <- tq_get(ticker, get = "stock.prices", from = start, to = end)
+    #check for weekly checkbox
+    if (input$time_frame2=="Daily"){
     
-    input <- input[!is.na(input$adjusted),]
+        input <- tq_get(ticker, get = "stock.prices", from = start, to = end)
+        input <- input[!is.na(input$adjusted),]
+    
+    } else {
+        
+        #reformat for weekly time frame
+        input <- tq_get(ticker, get = "stock.prices", from = start, to = end)
+        
+        mondays = as.POSIXlt(input$date)$wday == 1
+        tuesdays = as.POSIXlt(input$date)$wday == 2
+        wednesdays = as.POSIXlt(input$date)$wday == 3
+        thursdays = as.POSIXlt(input$date)$wday == 4
+        fridays = as.POSIXlt(input$date)$wday == 5
+        
+        indx_mondays <- c(0, which(mondays))
+        indx_tuesdays <- c(0, which(tuesdays))
+        indx_wednesdays <- c(0, which(wednesdays))
+        indx_thursdays <- c(0, which(thursdays))
+        indx_fridays <- c(0, which(fridays))
+        
+        open <- input[,1]
+        open$index = 1:nrow(open)
+        
+        input$mondays <- indx_mondays[match(open$index,indx_mondays)]
+        input$tuesdays <- indx_tuesdays[match(open$index,indx_tuesdays)]
+        input$wednesdays <- indx_wednesdays[match(open$index,indx_wednesdays)]
+        input$thursdays <- indx_thursdays[match(open$index,indx_thursdays)]
+        input$fridays <- indx_fridays[match(open$index,indx_fridays)]
+        
+        input$weekday <- ifelse(!is.na(input$mondays),1,
+                               ifelse(!is.na(input$tuesdays),2,
+                               ifelse(!is.na(input$wednesdays),3,
+                               ifelse(!is.na(input$thursdays),4,
+                               ifelse(!is.na(input$fridays),5,NA)))))
+        input$week_num <- NA
+        
+        week = 0
+        try(for (i in 1:nrow(input)){
+            if(input$weekday[i]>input$weekday[i+1]){
+                week = week + 1
+                input$week_num[i+1] <- week
+            }  else {
+                input$week_num[i+1] <- week
+            }  
+        },silent=FALSE)
+        
+        #patch up
+        input$week_num[1] <- input$week_num[2]
+        
+        input %>% group_by(week_num) %>%
+            summarise(
+                size = n(),
+                date = first(date),
+                open = first(open),
+                low = min(low),
+                high = max(high),
+                close = last(close),
+                adjusted = last(adjusted),
+                volume = sum(volume)
+            ) -> input
+        
+    }
     
      #add technical indicators
     try(input$ma50 <- SMA(input$adjusted,50),silent=TRUE)
@@ -1647,14 +1717,7 @@ TO DO LIST
 =====================================  
 
 Options Activity
-    * Add Ticker Search Functionality
-        - Added
-    * Check that all trade dates for selected ticker are showing
-        - Checked and confirmed
-    * Add bottom bullish/bearish guage
-        - Added 7/26
     * Change chart type to bars?
-    * Remove technicals?
     
 Technicals - Chart
     * Add more date tick-mark intervals to X axis
@@ -1678,12 +1741,13 @@ Technicals - Events
         - Added
     * Build out Distribution + Event logic
     * Re order columns in summary tables
-    * Add candlestick pattern events
+    * Add candlestick pattern events?
     * Correct order of event count (ex: 1,2,..10, not 1,10,2..)
+    * add bars to table?
     
 Fundamentals
     * Add Sidebar selector
-    * BEGIN CONSTRUCTION
+    * switch source to yhoo or google
     
 
 
