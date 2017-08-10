@@ -176,6 +176,8 @@ selectedData <- reactive({
     g_file_sub_all <- rbind(g_file_sub_top,g_file_sub_bottom)
     g_file_sub_all %>% arrange(desc(Bear_Bull_Ratio)) -> g_file_sub_all
 })
+
+
 ```
 
 #### Bullish/Total %
@@ -201,9 +203,93 @@ renderGauge({
   
 ))
     
-    
 })
+
+```
+
+#### Informational Links
+
+```{r info links}
+
+output$stock_link <- renderUI({
     
+        if (nchar(input$inText)<1){
+            
+            row_selected <- input$tbl1_rows_selected
+            ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+            a("Chart Link", 
+            href=paste0("http://stockcharts.com/h-sc/ui?s=", ticker), target="_blank") 
+            
+        } else {
+            
+            ticker <- toupper(input$inText)
+            a("Chart Link", 
+            href=paste0("http://stockcharts.com/h-sc/ui?s=", ticker), target="_blank") 
+        }
+            
+        })
+
+htmlOutput("stock_link")
+
+output$eps_link <- renderUI({
+    
+        if (nchar(input$inText)<1){
+            
+            row_selected <- input$tbl1_rows_selected
+            ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+            a("Revenue & EPS History", 
+            href=paste0("http://www.nasdaq.com/symbol/",ticker,"/revenue-eps"), target="_blank") 
+            
+        } else {
+            
+            ticker <- toupper(input$inText)
+            a("Revenue & EPS History", 
+            href=paste0("http://www.nasdaq.com/symbol/",ticker,"/revenue-eps"), target="_blank") 
+        }
+            
+        })
+
+htmlOutput("eps_link")
+
+output$inst_activity <- renderUI({
+    
+        if (nchar(input$inText)<1){
+            
+            row_selected <- input$tbl1_rows_selected
+            ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+            a("Institutional Holdings", 
+            href=paste0("http://www.nasdaq.com/symbol/",tolower(ticker),"/institutional-holdings"), target="_blank") 
+            
+        } else {
+            
+            ticker <- toupper(input$inText)
+            a("Institutional Holdings", 
+            href=paste0("http://www.nasdaq.com/symbol/",tolower(ticker),"/institutional-holdings"), target="_blank") 
+        }
+            
+        })
+
+htmlOutput("inst_activity")
+
+output$earnings <- renderUI({
+    
+        if (nchar(input$inText)<1){
+            
+            row_selected <- input$tbl1_rows_selected
+            ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+            a("Earnings", 
+            href=paste0("http://www.nasdaq.com/earnings/report/",ticker), target="_blank") 
+            
+        } else {
+            
+            ticker <- toupper(input$inText)
+            a("Earnings", 
+            href=paste0("http://www.nasdaq.com/earnings/report/",ticker), target="_blank") 
+        }
+            
+        })
+
+htmlOutput("earnings")
 
 ```
 
@@ -653,6 +739,25 @@ selectInput("time_frame2", label = "Select Timeframe: ",
 actionButton("clickMe4", label = "Search")
 ```
 
+#### Current RSI Quantile
+
+```{r-RSI quantile gauge}
+
+renderGauge({
+    
+    
+    col <- event_summ_all()[,c("RSI_q")]
+    rsi_q <- round(col[length(col)],2)
+    
+    
+  gauge(rsi_q, min = 0, max = 1, symbol = '%', gaugeSectors(
+  success = c(.8, 1), warning = c(.4, .79), danger = c(0, .39)
+  
+))
+    
+})
+
+```
 
 Row
 -------------------------------------
@@ -684,7 +789,8 @@ event_chart <- reactive({
                   return = round((min_price-start_price)/start_price,4),
                   min_day = sum(which(adjusted == min_price)),
                   tot_days = n(),
-                  rsi_q = first(RSI_q_bins)) %>% 
+                  rsi_q = first(RSI_q_bins),
+                  date = first(date)) %>% 
             filter (return !=0) -> event_summ_tbl
         # filter out erroneous crosses (where opposite cross happened)
         event_summ_tbl[[event]] <- as.numeric(row.names(event_summ_tbl))
@@ -696,41 +802,15 @@ event_chart <- reactive({
         #compute mean & standard deviations (days)
         day_mean <- mean(event_summ_tbl$min_day)
         day_sd <- sd(event_summ_tbl$min_day)
-        
+    
         g1 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = return,fill=rsi_q)) +
-          geom_bar(stat = "identity") + ggtitle("Max_Return") +
-          theme(axis.title.x = element_blank(), 
-                # axis.title.y = element_blank(), 
-                # axis.text.y = element_blank(), 
-                # axis.ticks.y = element_blank(), 
-                plot.margin = unit(c(1,-1,1,0), "mm")) + 
-            coord_flip() + theme(panel.grid.minor = element_line(colour="blue", size=0.5)) +
-            scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +
-            scale_fill_manual(breaks=c("\\[0,0.2)", "\\[0.2,0.4)", "\\[0.4,0.6)", 
-                                   "\\[0.6,0.8)", "\\[0.8,1.0)"),
-                          values = c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey"))
-        
+          geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Min_Return") +
+            coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="none") 
+
         
         g2 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = min_day, fill=rsi_q)) +
-          geom_bar(stat = "identity") + ggtitle("Max_Days") +
-          theme(axis.title.x = element_blank(), 
-                axis.title.y = element_blank(), 
-                axis.text.y = element_blank(), 
-                axis.ticks.y = element_blank(), 
-                plot.margin = unit(c(1,-1,1,0), "mm")) + 
-            coord_flip() + theme(panel.grid.minor = element_line(colour="blue", size=0.5)) +
-            scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +
-            scale_fill_manual(breaks=c("\\[0,0.2)", "\\[0.2,0.4)", "\\[0.4,0.6)", 
-                                   "\\[0.6,0.8)", "\\[0.8,1.0)"),
-                          values = c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey"))
-        
-        # g1 <- ggplot(event_summ_tbl, aes(x=event_summ_tbl[,1], y=return)) +
-        # geom_bar(stat='identity',width=.5) + xlab(paste0("Occurance count: ",event)) +
-        #     geom_ribbon(aes(ymin = return_mean - return_sd, ymax = return_mean + return_sd,group=1), fill = "grey70",alpha=0.3) + geom_line(aes(y = return_mean),colour="red",group=1) + ggtitle("Farthest Return Distribution") + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1])))
-        # 
-        # g2 <- ggplot(event_summ_tbl, aes(x=event_summ_tbl[,1], y=min_day)) +
-        # geom_bar(stat='identity',width=.5) + xlab(paste0("Occurance count: ",event)) +
-        #     geom_ribbon(aes(ymin = day_mean - day_sd, ymax = day_mean + day_sd,group=1), fill = "grey70",alpha=0.3)  + geom_line(aes(y = day_mean),colour="red",group=1) + ggtitle("Farthest Day Distribution") + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1])))
+            geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Min_Day") +
+         coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="right")
 
     } else {
         # subset for rows with over condition
@@ -750,7 +830,8 @@ event_chart <- reactive({
                   return = round((max_price-start_price)/start_price,4),
                   max_day = sum(which(adjusted == max_price)),
                   tot_days = n(),
-                  rsi_q = first(RSI_q_bins))  %>% 
+                  rsi_q = first(RSI_q_bins),
+                  date = first(date))  %>% 
             filter (return !=0) -> event_summ_tbl
             # filter out erroneous crosses (where opposite cross happened)
         event_summ_tbl[[event]] <- as.numeric(row.names(event_summ_tbl))
@@ -763,54 +844,15 @@ event_chart <- reactive({
         day_mean <- mean(event_summ_tbl$max_day)
         day_sd <- sd(event_summ_tbl$max_day)
         
-        
-        # event_summ_tbl$return = event_summ_tbl$return*100
-        # test_tbl <- event_summ_tbl %>% 
-        #     gather() %>%
-        #     filter(key %in% c("max_day","return"))
-        # test_tbl$ID <- seq.int(nrow(event_summ_tbl))
-        
         g1 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = return,fill=rsi_q)) +
-          geom_bar(stat = "identity") + ggtitle("Max_Return") +
-          theme(axis.title.x = element_blank(), 
-                # axis.title.y = element_blank(), 
-                # axis.text.y = element_blank(), 
-                # axis.ticks.y = element_blank(), 
-                plot.margin = unit(c(1,-1,1,0), "mm")) + 
-            coord_flip() + theme(panel.grid.minor = element_line(colour="blue", size=0.5)) +
-            scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +
-            scale_fill_manual(breaks=c("\\[0,0.2)", "\\[0.2,0.4)", "\\[0.4,0.6)", 
-                                   "\\[0.6,0.8)", "\\[0.8,1.0)"),
-                          values = c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey"))
-        
+          geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Max_Return") +
+            coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="none")
+
         
         g2 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = max_day, fill=rsi_q)) +
-          geom_bar(stat = "identity") + ggtitle("Max_Days") +
-          theme(axis.title.x = element_blank(), 
-                # axis.title.y = element_blank(), 
-                axis.text.y = element_blank(), 
-                axis.ticks.y = element_blank(), 
-                plot.margin = unit(c(1,-1,1,0), "mm")) + 
-            coord_flip() + theme(panel.grid.minor = element_line(colour="blue", size=0.5)) +
-            scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +
-            scale_fill_manual(breaks=c("\\[0,0.2)", "\\[0.2,0.4)", "\\[0.4,0.6)", 
-                                   "\\[0.6,0.8)", "\\[0.8,1.0)"),
-                          values = c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey"))
+            geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Max_Days") +
+         coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="right")
         
-        
-        #TEST
-        # ggplot(test_tbl, aes(x=ID,y=value,fill=factor(key))) +
-        # geom_bar(stat="identity",position="dodge") + scale_x_discrete(limits = test_tbl$ID)
-        
-        
-# 
-#         g1 <- ggplot(event_summ_tbl, aes(x=event_summ_tbl[,1], y=return)) +
-#         geom_bar(stat='identity',width=.5) + xlab(paste0("Occurance count: ",event)) +
-#             geom_ribbon(aes(ymin = return_mean - return_sd, ymax = return_mean + return_sd,group=1), fill = "grey70",alpha=0.3) + geom_line(aes(y = return_mean),colour="red",group=1) + ggtitle("Farthest Return Distribution") + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1])))
-#             
-#         g2 <- ggplot(event_summ_tbl, aes(x=event_summ_tbl[,1], y=max_day)) +
-#         geom_bar(stat='identity',width=.5) + xlab(paste0("Occurance count: ",event)) +
-#             geom_ribbon(aes(ymin = day_mean - day_sd, ymax = day_mean + day_sd,group=1), fill = "grey70",alpha=0.3)  + geom_line(aes(y = day_mean),colour="red",group=1) + ggtitle("Farthest Day Distribution") + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1])))
         
     }
     
@@ -835,6 +877,20 @@ event_chart <- reactive({
     #         geom_line(aes(x=date,y=dn),color="purple")
     # }
     # 
+    #WIP
+      # Add 
+    matches <- which(input2$date %in% event_summ_tbl$date)
+        
+        if(length(matches)>0){
+            
+            for (i in 1:length(matches)) {
+                loop_input <- paste("geom_vline(xintercept=input2$date[",matches[i],
+                                "],color='blue',,size=1)", sep="")
+                p1 <- p1 + eval(parse(text=loop_input))  
+            }
+        }
+      
+      
     grid.arrange(g1,g2,p1,widths=c(1/6,1/6,2/3))
     
 })
@@ -1247,11 +1303,8 @@ TO DO LIST
 
 Options Activity
     * Change chart type to bars?
-    * Add chartlinks to sidebar
-    * Add financial link to sidebar
-    * Add earnings link to sidebar
-    * Add inst link to sidebar
-    
+    * remove 'date' axis title from chart
+
     
 Technicals - Chart
     * Add more date tick-mark intervals to X axis
@@ -1270,11 +1323,13 @@ Technicals - Events
     * Add legend for mean/sd line/interval on chart
         - Added
     * Color code bars by RSI quintile
-        - Added
+        - Added/Fix with legend colors to be constant
     * Change color coded bars to better color pallete
+    * Fix cross logic to not count days where the moving average was NA
     * Add events to chart
         * add first date to each event
         * add horizontol line + event count to chart
+        
     * add color/value bars to table?
     * Re-word following columns:
         * avg_farthest_return
