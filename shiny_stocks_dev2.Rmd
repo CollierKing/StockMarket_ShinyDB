@@ -1,0 +1,1289 @@
+---
+title: "Stock Screener"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    social: menu
+    source_code: embed
+runtime: shiny
+---
+
+```{r global, include=FALSE}
+# library(readr)
+library(DT)
+library(dplyr)
+library(tidyr)
+# library(googledrive)
+library(crosstalk)
+library(htmltools)
+library(htmlTable)
+# library(tidyverse)
+library(tidyquant)
+library(scales)
+library(bdscale)
+library(ggplot2)
+library(quantmod)
+library(rvest)
+library(XML)
+library(gridExtra)
+library(grid)
+library(cowplot)
+library(RCurl)
+library(htmlwidgets)
+library(flexdashboard)
+
+g_file_txt <- getURL("https://raw.githubusercontent.com/CollierKing/StockMarket_ShinyDB/master/all_trades.csv")
+
+g_file <- read.csv(text=g_file_txt,stringsAsFactors = FALSE)
+
+g_file$TradeDate <- as.Date(g_file$TradeDate)
+
+
+# options(shiny.error = function() {
+#   # stop("Waiting for user to load data..")
+#     stop("")
+# })
+
+## Define Functions - Ticker Query
+tickerQuery <- function(ticker,time_frame){
+    # ticker <- "AAPL"
+    
+    getSymbols.google(ticker,env = globalenv())    
+    input <- as.data.frame(get(ticker))
+    colnames(input) <- c("Open",
+                         "High",
+                         "Low",
+                         "Close",
+                         "Volume")
+    input <- input[!is.na(input$Close),]
+    input$date <- row.names(input)
+
+    if (time_frame=="Weekly"){
+        #reformat for weekly time frame
+        
+        mondays = as.POSIXlt(input$date)$wday == 1
+        tuesdays = as.POSIXlt(input$date)$wday == 2
+        wednesdays = as.POSIXlt(input$date)$wday == 3
+        thursdays = as.POSIXlt(input$date)$wday == 4
+        fridays = as.POSIXlt(input$date)$wday == 5
+        
+        indx_mondays <- c(0, which(mondays))
+        indx_tuesdays <- c(0, which(tuesdays))
+        indx_wednesdays <- c(0, which(wednesdays))
+        indx_thursdays <- c(0, which(thursdays))
+        indx_fridays <- c(0, which(fridays))
+        
+        open <- as.data.frame(input[,1])
+        colnames(open) <- "open"
+        open$index = 1:nrow(open)
+        
+        input$mondays <- indx_mondays[match(open$index,indx_mondays)]
+        input$tuesdays <- indx_tuesdays[match(open$index,indx_tuesdays)]
+        input$wednesdays <- indx_wednesdays[match(open$index,indx_wednesdays)]
+        input$thursdays <- indx_thursdays[match(open$index,indx_thursdays)]
+        input$fridays <- indx_fridays[match(open$index,indx_fridays)]
+        
+        input$weekday <- ifelse(!is.na(input$mondays),1,
+                               ifelse(!is.na(input$tuesdays),2,
+                               ifelse(!is.na(input$wednesdays),3,
+                               ifelse(!is.na(input$thursdays),4,
+                               ifelse(!is.na(input$fridays),5,NA)))))
+        input$week_num <- NA
+        
+        week = 0
+        try(for (i in 1:nrow(input)){
+            if(input$weekday[i]>input$weekday[i+1]){
+                week = week + 1
+                input$week_num[i+1] <- week
+            }  else {
+                input$week_num[i+1] <- week
+            }  
+        },silent=FALSE)
+        
+        #patch up
+        input$week_num[1] <- input$week_num[2]
+        
+        input %>% group_by(week_num) %>%
+            summarise(
+                size = n(),
+                date = first(date),
+                Open = first(Open),
+                Low = min(Low),
+                High = max(High),
+                Close = last(Close),
+                # adjusted = last(adjusted),
+                Volume = sum(Volume)
+            ) -> input
+        
+    }
+    
+     #add technical indicators
+    try(input$ma50 <- SMA(input$Close,50),silent=TRUE)
+    try(input$ma21 <- SMA(input$Close,21),silent=TRUE)
+    try(input$ma9 <- SMA(input$Close,9),silent=TRUE)
+    try(bbands <- as.data.frame(BBands(input$Close, n=20,sd=2)),silent=TRUE)
+    try(bbands <- bbands[,c("up","dn")],silent = TRUE)
+    try(input <- cbind(input,bbands),silent = TRUE)
+    input$pos_neg <- ifelse(input$Close>lag(input$Close,1),"red","green")
+    try(input$RSI <- RSI(input$Close))
+    try(macd <- as.data.frame(MACD(input$Close)))
+    try(input <- cbind(input,macd),silent = TRUE)
+    try(input$macd_delt <- input$macd-input$signal)
+    input$date <- as.Date(input$date)
+
+    return(input)
+}
+
+
+```
+
+Home
+=====================================  
+
+Welcome to the stock screener dashboard.  This tool's functionality includes:
+
+#### Options Activity Tracking & Aggregation
+
+    Option Trade Activity is gathered from Twitter on a daily basis.  Trade information is aggregated and summarized by ticker and captures the following:
+        * Trade Date
+        * Option Type (ie: Call/Put)
+        * Activity Type (ie: Buying/Selling)
+        * Strike Price
+        * Expiration Date
+        * Initial Contract Volume
+        * Earnings Date (if available)
+
+#### Charting for Technical Analysis
+
+    A candlestick chart is constructed for selected ticker over selected time period. Features include:
+    
+        * Technical Indicators
+            * Simple Moving Averages, Bollinger Bands, MACD, RSI, Rolling Volatility
+        
+        * Intra-Chart Event Flags
+            * Price/Moving Average Crosses
+            * MACD Crosses
+            * Candlestick Patterns
+                * Morning/Evening Star, Bullishing/Bearish Engulfing, etc..
+            
+
+#### Future Historical Returns across Price Distributions
+
+    This page attempts to show the overall risk/reward of a stock given its present price range within the distribution of its historical technical indicator values.
+        * Future returns are calculated for particular quantile ranges of technical indicators (ie: Price % above/below 9SMA)
+        * Future returns are extrapolated across days in the future (ie: 10 days, 50 days out)
+    
+#### Historical Returns after Events
+
+    A distribution (and mean & standard deviation) of returns for a stock when it undergoes an event (ie: MACD Cross Upward).  A distribution of returns during an event is provided for the selected date interval.  
+
+#### Historical Returns after Events across Price Distributions
+
+    The same as above section, however controls for events which have taken place within the stock's current price/indicator distribution.  This is a combination of the prior two sections.
+
+#### Fundamental Analysis Snapshot
+
+    Provides a high level summary of a stock's financials.  
+    
+
+Options Activity
+=====================================  
+
+Inputs {.sidebar}
+-------------------------------------
+
+View top bullish/bearish tickers by option activity.
+Select tickers from right table to view activity or search tickers in searchbox.
+
+```{r page1 sidebar}
+
+## Add checkboxes
+
+sliderInput("table_rows", label = "Limit Tickers:",
+            min = 5, max = 20, value = 10, step = 1)
+
+
+dateRangeInput("daterange1", "Options Activity Date Range:",
+                 start = Sys.Date()-30,
+                 end   = Sys.Date())
+
+dateRangeInput("daterange2", "Chart Date Range:",
+               start = Sys.Date()-254,
+               end = Sys.Date())
+
+textInput("inText","Ticker Search (clear box for table selection):","")
+
+##############################################################
+selectedData_src <- reactive({
+    
+    start <- input$daterange1[1]
+    end <- input$daterange1[2]
+  
+    g_file_sub <- g_file[g_file$TradeDate<=end &
+                         g_file$TradeDate>=start,]
+    
+})
+
+selectedData <- reactive({
+    selectedData_src() %>%
+        group_by(Ticker) %>%
+        summarise(
+          Bullish = sum(ifelse(OptionType %in% "Calls" & ActivityType %in% "BUYING" |
+                               OptionType %in% "Puts" & ActivityType %in% "SELLING",1,0)),
+          Bearish = sum(ifelse(OptionType %in% "Puts" & ActivityType %in% "BUYING" |
+                               OptionType %in% "Calls" & ActivityType %in% "SELLING",1,0)),
+          Bull_Ratio = round(ifelse(Bearish!=0,Bullish/Bearish,Bullish/1),1),
+          Bear_Ratio = round(ifelse(Bullish!=0,Bearish/Bullish,Bearish/1),1),
+          Bear_Bull_Ratio = ifelse(Bull_Ratio==Bear_Ratio,0,
+                                   ifelse(Bull_Ratio>Bear_Ratio,Bull_Ratio,-Bear_Ratio))) %>% 
+          select(
+              Ticker,Bear_Bull_Ratio,Bullish,Bearish
+            ) %>%
+          arrange(desc(Bear_Bull_Ratio)) -> g_file_sub_top
+        g_file_sub_top <- head(g_file_sub_top,input$table_rows)
+        g_file_sub_top$Direction <- ifelse(g_file_sub_top$Bear_Bull_Ratio>0,"up","down")
+  
+  
+    #Create top bearish trade table
+    selectedData_src() %>%
+        group_by(Ticker) %>%
+        summarise(
+          Bullish = sum(ifelse(OptionType %in% "Calls" & ActivityType %in% "BUYING" |
+                               OptionType %in% "Puts" & ActivityType %in% "SELLING",1,0)),
+          Bearish = sum(ifelse(OptionType %in% "Puts" & ActivityType %in% "BUYING" |
+                               OptionType %in% "Calls" & ActivityType %in% "SELLING",1,0)),
+          Bull_Ratio = round(ifelse(Bearish!=0,Bullish/Bearish,Bullish/1),1),
+          Bear_Ratio = round(ifelse(Bullish!=0,Bearish/Bullish,Bearish/1),1),
+          Bear_Bull_Ratio = ifelse(Bull_Ratio==Bear_Ratio,0,
+                                   ifelse(Bull_Ratio>Bear_Ratio,Bull_Ratio,-Bear_Ratio))) %>%
+          select(
+              Ticker,Bear_Bull_Ratio,Bullish,Bearish
+            ) %>%
+          arrange(Bear_Bull_Ratio) -> g_file_sub_bottom
+      g_file_sub_bottom <- head(g_file_sub_bottom,input$table_rows)
+      g_file_sub_bottom$Direction <- ifelse(g_file_sub_bottom$Bear_Bull_Ratio>0,"up","down")
+        
+      #Merge top bearish trade table with top bullish trade table  
+    g_file_sub_all <- rbind(g_file_sub_top,g_file_sub_bottom)
+    g_file_sub_all %>% arrange(desc(Bear_Bull_Ratio)) -> g_file_sub_all
+})
+
+
+```
+
+#### Bullish/Total %
+
+```{r-bullish percent gauge}
+
+renderGauge({
+    
+    ratio <- selectedData2() %>% group_by(Ticker) %>%
+        summarise(
+            Bullish = sum(ifelse(OptionType %in% "Calls" & ActivityType %in% "BUYING" |
+                               OptionType %in% "Puts" & ActivityType %in% "SELLING",1,0)),
+            Bearish = sum(ifelse(OptionType %in% "Puts" & ActivityType %in% "BUYING" |
+                               OptionType %in% "Calls" & ActivityType %in% "SELLING",1,0)),
+            total = n(),
+            Bull_Pct = round(Bullish/total,2)
+            )
+    
+    ratio <- ratio$Bull_Pct
+    
+  gauge(ratio, min = 0, max = 1, symbol = '%', gaugeSectors(
+  success = c(.8, 1), warning = c(.4, .79), danger = c(0, .39)
+  
+))
+    
+})
+
+```
+
+#### Informational Links
+
+```{r info links}
+
+output$stock_link <- renderUI({
+    
+        if (nchar(input$inText)<1){
+            
+            row_selected <- input$tbl1_rows_selected
+            ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+            a("Chart Link", 
+            href=paste0("http://stockcharts.com/h-sc/ui?s=", ticker), target="_blank") 
+            
+        } else {
+            
+            ticker <- toupper(input$inText)
+            a("Chart Link", 
+            href=paste0("http://stockcharts.com/h-sc/ui?s=", ticker), target="_blank") 
+        }
+            
+        })
+
+htmlOutput("stock_link")
+
+output$eps_link <- renderUI({
+    
+        if (nchar(input$inText)<1){
+            
+            row_selected <- input$tbl1_rows_selected
+            ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+            a("Revenue & EPS History", 
+            href=paste0("http://www.nasdaq.com/symbol/",ticker,"/revenue-eps"), target="_blank") 
+            
+        } else {
+            
+            ticker <- toupper(input$inText)
+            a("Revenue & EPS History", 
+            href=paste0("http://www.nasdaq.com/symbol/",ticker,"/revenue-eps"), target="_blank") 
+        }
+            
+        })
+
+htmlOutput("eps_link")
+
+output$inst_activity <- renderUI({
+    
+        if (nchar(input$inText)<1){
+            
+            row_selected <- input$tbl1_rows_selected
+            ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+            a("Institutional Holdings", 
+            href=paste0("http://www.nasdaq.com/symbol/",tolower(ticker),"/institutional-holdings"), target="_blank") 
+            
+        } else {
+            
+            ticker <- toupper(input$inText)
+            a("Institutional Holdings", 
+            href=paste0("http://www.nasdaq.com/symbol/",tolower(ticker),"/institutional-holdings"), target="_blank") 
+        }
+            
+        })
+
+htmlOutput("inst_activity")
+
+output$earnings <- renderUI({
+    
+        if (nchar(input$inText)<1){
+            
+            row_selected <- input$tbl1_rows_selected
+            ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+            a("Earnings", 
+            href=paste0("http://www.nasdaq.com/earnings/report/",ticker), target="_blank") 
+            
+        } else {
+            
+            ticker <- toupper(input$inText)
+            a("Earnings", 
+            href=paste0("http://www.nasdaq.com/earnings/report/",ticker), target="_blank") 
+        }
+            
+        })
+
+htmlOutput("earnings")
+
+```
+
+
+
+Row
+-----------------------------------------------------------------------
+
+### Bull/Bear Activity Chart
+
+```{r bull/bear activity chart}
+
+#Crate top bearish/bullish bar chart
+plotOutput("plot1", brush = brushOpts(id = "plot1_brush"))
+output$plot1 <- renderPlot({
+
+   ggplot(selectedData(), aes(x=reorder(Ticker, Bear_Bull_Ratio), y=Bear_Bull_Ratio)) +
+    geom_bar(stat='identity', aes(fill=Direction),width=.5) +
+        scale_fill_manual(name="Bet Direction",
+                    values = c("up"="#00ba38", "down"="#f8766d")) +
+        coord_flip() +
+        labs(y="Bull/Bear Ratio", 
+        x="Ticker")
+})
+```
+
+### Bull/Bear Activity Table
+
+```{r bull/bear activity table}
+dataTableOutput("tbl1")
+output$tbl1 <- renderDataTable({
+  selectedData()
+},
+options = list(
+      scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Activity on Selected Ticker {data-width=400}
+
+```{r activity on selected ticker}
+
+selectedData2 <- reactive({
+    
+    #View Activity via table selection
+    if (nchar(input$inText)<1){
+        
+        row_selected <- input$tbl1_rows_selected
+        ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+        g_file_sub <- selectedData_src() %>% arrange(Ticker,desc(TradeDate))
+        g_file_sub <- g_file_sub[g_file_sub$Ticker==ticker,]
+        g_file_sub <- g_file_sub[,c("Ticker","TradeDate","OptionType","ActivityType",
+                                    "ExpDate","Strike","InitialVolume","EarningsDate")]
+        g_file_sub
+
+    #View Activity via Custom Search        
+    } else {
+        
+        ticker <- toupper(input$inText)
+        g_file_sub <- selectedData_src() %>% arrange(Ticker,desc(TradeDate))
+        g_file_sub <- g_file_sub[g_file_sub$Ticker==ticker,]
+        g_file_sub <- g_file_sub[,c("Ticker","TradeDate","OptionType","ActivityType",
+                                    "ExpDate","Strike","InitialVolume","EarningsDate")]
+        g_file_sub
+    }
+})
+
+renderDataTable({
+        selectedData2()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+
+```
+
+### Chart of Selected Ticker {data-width=400}
+
+```{r chart of selected ticker}
+
+chart <- reactive({
+    ##################### 
+    if (nchar(input$inText)<1){
+        row_selected <- input$tbl1_rows_selected
+        ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+    } else {
+        ticker <- toupper(input$inText)
+    }
+        
+    g_file_sub <- selectedData_src()
+    g_file_sub <- g_file_sub[g_file_sub$Ticker==ticker,]
+    selected_df <- g_file_sub[g_file_sub$Ticker==ticker,]
+
+    #query for quotes
+    start_q <- input$daterange2[1]
+    end_q <- input$daterange2[2]
+
+    # input <- tq_get(ticker, get = "stock.prices", from = start_q, to = end_q)
+    # #add technical indicators
+    # try(input$ma50 <- SMA(input$close,50),silent=TRUE)
+    # try(input$ma21 <- SMA(input$close,21),silent=TRUE)
+    # try(input$ma9 <- SMA(input$close,9),silent=TRUE)
+    # try(bbands <- as.data.frame(BBands(input$close, n=20,sd=2)),silent=TRUE)
+    # try(bbands <- bbands[,c("up","dn")],silent = TRUE)
+    # try(input <- cbind(input,bbands),silent = TRUE)
+    # try(input$pos_neg <- ifelse(input$adjusted>lag(input$adjusted,1),"red","green"),silent=TRUE)
+    
+    input <- tickerQuery(ticker,"Daily")
+    # input <- tickerQuery(ticker,"Weekly")
+    input <- input[input$date>=start_q &
+                       input$date<=end_q,]
+    
+    # input <- input[input$date>=start_q &
+    #                    input$date<=end_q,]
+    
+    
+    
+    p1 <- ggplot(input, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), 
+            upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + 
+            geom_boxplot(stat='identity') +
+            # theme_dark() +
+            ggtitle(paste0(ticker,": Daily")) +
+            xlab('') + 
+            ylab('') + 
+            theme(legend.position='none') +
+            scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y")) 
+
+    ## ADD TECHNICAL INDICATORS
+    # if (nrow(input[!is.na(input$ma50),]) > 0){
+    # 
+    #     p1 <- p1 + geom_line(aes(x=date,y=ma50),colour="green")
+    # }
+    # 
+    # if (nrow(input[!is.na(input$ma21),]) > 0){
+    # 
+    #     p1 <- p1 + geom_line(aes(x=date,y=ma21),color="red")
+    # }
+    # 
+    # if (nrow(input[!is.na(input$ma9),]) > 0){
+    # 
+    #     p1 <- p1 + geom_line(aes(x=date,y=ma9),colour="blue")
+    # }
+    # 
+    # if (nrow(input[!is.na(input$up),]) > 0){
+    # 
+    #     p1 <- p1 + geom_line(aes(x=date,y=up),color="purple") +
+    #         geom_line(aes(x=date,y=dn),color="purple")
+    # }
+    
+    ############################################
+    ## ADD EVENT DATA
+    #Add call buys
+    callBuys <- selected_df[selected_df$OptionType=='Calls' & selected_df$ActivityType=="BUYING",]
+
+    if (nrow(callBuys)!=0) {
+        callBuys$TradeDate <- as.Date(callBuys$TradeDate)
+        matches <- which(input$date %in% callBuys$TradeDate)
+
+        if(length(matches)>0){
+
+            for (i in 1:length(matches)) {
+                loop_input <- paste("geom_vline(xintercept=input$date[",matches[i],
+                                "],color='green',,size=1,linetype='dotted')", sep="")
+                p1 <- p1 + eval(parse(text=loop_input))
+            }
+        }
+    }
+
+    #Add call sales
+    callSells <- selected_df[selected_df$OptionType=='Calls' & selected_df$ActivityType=='SELLING',]
+
+    if (nrow(callSells)!=0) {
+        callSells$TradeDate <- as.Date(callSells$TradeDate)
+        matches <- which(input$date %in% callSells$TradeDate)
+
+        if(length(matches)>0){
+
+            for (i in 1:length(matches)) {
+                loop_input <- paste("geom_vline(xintercept=input$date[",matches[i],
+                                "],color='orange',,size=1,linetype='dotted')", sep="")
+                p1 <- p1 + eval(parse(text=loop_input))
+            }
+
+        }
+
+    }
+
+    #Add put buys
+    putBuys <- selected_df[selected_df$OptionType=='Puts' & selected_df$ActivityType=='BUYING',]
+
+    if (nrow(putBuys)!=0) {
+        putBuys$TradeDate <- as.Date(putBuys$TradeDate)
+        matches <- which(input$date %in% putBuys$TradeDate)
+
+        if(length(matches)>0){
+
+            for (i in 1:length(matches)) {
+                loop_input <- paste("geom_vline(xintercept=input$date[",matches[i],
+                                "],color='red',size=1,linetype='dotted')", sep="")
+                p1 <- p1 + eval(parse(text=loop_input))
+            }
+        }
+    }
+
+    #Add put sales
+    putSells <- selected_df[selected_df$OptionType=='Puts' & selected_df$ActivityType=='SELLING',]
+
+    if (nrow(putSells)!=0) {
+        putSells$TradeDate <- as.Date(putSells$TradeDate)
+        matches <- which(input$date %in% putSells$TradeDate)
+
+        if(length(matches)>0){
+
+            for (i in 1:length(matches)) {
+                loop_input <- paste("geom_vline(xintercept=input$date[",matches[i],
+                                "],color='blue',,size=1,linetype='dotted')", sep="")
+                p1 <- p1 + eval(parse(text=loop_input))
+            }
+        }
+    }
+
+    #Add Earnings Dates
+    EarningsDates <- selected_df[selected_df$EarningsDate,]
+    EarningsDates <- EarningsDates[!is.na(EarningsDates$EarningsDate),]
+
+    if (nrow(EarningsDates)!=0) {
+        EarningsDates$EarningsDate <- as.Date(EarningsDates$EarningsDate)
+        matches <- which(input$date %in% EarningsDates$EarningsDate)
+
+        if (length(matches)!=0) {
+
+            for (i in 1:length(matches)) {
+                loop_input <- paste("geom_vline(xintercept=input$date[",matches[i],
+                                    "],color='pink',,size=1,linetype='dotted')", sep="")
+                p1 <- p1 + eval(parse(text=loop_input))
+            }
+        }
+    }
+    
+    p1
+                        
+    })
+
+renderPlot({
+    # try(chart(),silent=TRUE)
+    chart()
+    })
+
+```
+
+Technicals - Chart {data-orientation=rows}
+===========================================
+
+Inputs {.sidebar}
+-------------------------------------
+
+```{r page2 sidebar}
+
+## Add checkboxes
+dateRangeInput("daterange3", "Chart Date Range:",
+               start = Sys.Date()-254,
+               end = Sys.Date())
+
+
+selectInput("time_frame", label = "Select Timeframe: ",
+             list(`Daily` = "Daily",
+                `Weekly` = "Weekly"), selected = "Daily")
+
+
+textInput("inText2","Ticker Search:","")
+
+# actionButton("clickMe2", label = "Search", class = "btn btn-lg btn-primary", 
+#              onclick="location.href='#section-technicals';")
+
+actionButton("clickMe2", label = "Search")
+
+##############################################################
+
+```
+
+Row {data-height=750}
+-----------------------------------------------------------------------
+
+### Candlestick Plot
+
+```{r Technicals - plot}
+
+#Render larger plot
+techPlot1 <- eventReactive(input$clickMe2,{
+                      
+    ticker <- toupper(input$inText2)
+    start_q <- input$daterange3[1]
+    end_q <- input$daterange3[2]
+    
+    # if (input$time_frame=="Daily"){
+    
+    input <- tickerQuery(ticker,input$time_frame)
+    # input <- tickerQuery(ticker,"Weekly")
+    input <- input[input$date>=start_q &
+                   input$date<=end_q,]
+    
+    #VOLATILITY
+    # input$log_ret <- log10(input$adjusted/lag(input$adjusted,1))
+    # input$volatility <- input$log_ret
+    
+    # library(TTR)
+    # input$volatility <- runSD(input$log_ret,252)*sqrt(252)
+
+    p1 <- ggplot(input, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank(),axis.text.x = element_blank()) + background_grid(major = "xy",minor = "none")
+    
+    ## ADD TECHNICAL INDICATORS
+    if (nrow(input[!is.na(input$ma50),]) > 0){
+        p1 <- p1 + geom_line(aes(x=date,y=ma50),colour="green")
+    } 
+    if (nrow(input[!is.na(input$ma21),]) > 0){
+        p1 <- p1 + geom_line(aes(x=date,y=ma21),color="red")
+    }
+    if (nrow(input[!is.na(input$ma9),]) > 0){
+        p1 <- p1 + geom_line(aes(x=date,y=ma9),colour="blue")
+    }
+    if (nrow(input[!is.na(input$up),]) > 0){
+        p1 <- p1 + geom_line(aes(x=date,y=up),color="purple") +
+            geom_line(aes(x=date,y=dn),color="purple")
+    }
+    
+    p2 <- ggplot(input, aes(x=date, y=Volume,fill=pos_neg)) + geom_bar(stat='identity') + ylab("") + xlab("") + scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y")) + theme(axis.title.x = element_blank(),axis.text.x = element_blank(),axis.title.y = element_text(margin = margin(r=-10))) + guides(fill=FALSE) + background_grid(major = "xy",minor = "none")
+    
+    p3 <- ggplot() +
+    geom_line(data=input,aes(x=date,y=macd,color="red")) +
+    geom_line(data=input,aes(x=date,y=signal,color="blue")) +
+    scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y")) + guides(color=FALSE) + xlab("") + theme(axis.title.x = element_blank(),axis.text.x = element_blank()) + ylab("MACD") + background_grid(major = "xy",minor = "none")
+    # grid.arrange(p1,p2,heights=c(4/5,1/5))
+    
+    p4 <- ggplot() +
+    geom_line(data=input,aes(x=date,y=RSI,color="red")) + guides(color=FALSE) + xlab("") + background_grid(major = "xy",minor = "none")
+    
+    plot_grid(p1,p2,p3,p4,ncol=1,align='v', rel_heights = c(3, .5,.75,.75)) 
+    
+  })
+
+renderPlot({
+    techPlot1()
+})
+    
+```
+
+
+
+Technicals - Events
+=====================================  
+
+Inputs {.sidebar}
+-------------------------------------
+
+```{r event_page}
+## Add checkboxes
+dateRangeInput("daterange5", "Data Date Range:",
+               start = Sys.Date()-(6*(254)),
+               end = Sys.Date())
+
+textInput("inText4","Ticker Search:","")
+
+selectInput("time_frame2", label = "Select Timeframe: ",
+             list(`Daily` = "Daily",
+                `Weekly` = "Weekly"), selected = "Daily")
+
+actionButton("clickMe4", label = "Search")
+```
+
+#### Current RSI Quantile
+
+```{r-RSI quantile gauge}
+
+renderGauge({
+    
+    
+    col <- event_summ_all()[,c("RSI_q")]
+    rsi_q <- round(col[length(col)],2)
+    
+    
+  gauge(rsi_q, min = 0, max = 1, symbol = '%', gaugeSectors(
+  success = c(.8, 1), warning = c(.4, .79), danger = c(0, .39)
+  
+))
+    
+})
+
+```
+
+Row
+-------------------------------------
+
+### Event Plot
+
+```{r event_plots}
+
+event_chart <- reactive({
+    
+    event <- event_summ_tbl()[input$tbl3_rows_selected,]$event
+    
+    if(substr(event,nchar(event)-1,nchar(event))=="dn"){
+          # subset for rows with under condition
+         ###############
+        comp = substr(event,1,nchar(event)-3)
+        comp_tbl = event_summ_all() %>% filter_(paste(comp, "== 'under'"))
+        # comp_tbl = input2 %>% filter_(paste(comp, "== 'under'")) #for debugging
+        
+        comp_tbl$RSI_q_bins <- as.character(comp_tbl$RSI_q_bins)
+        comp_tbl$RSI_q_bins <- ifelse(is.na(comp_tbl$RSI_q_bins),"NULL",comp_tbl$RSI_q_bins)
+        
+        #####################
+        # create historical event_summary statistics from subset
+        #####################
+        comp_tbl %>% group_by_(event) %>%
+        summarise(min_price = min(Close),
+                  start_price = first(Close),
+                  return = round((min_price-start_price)/start_price,4),
+                  min_day = sum(which(Close == min_price)),
+                  tot_days = n(),
+                  rsi_q = first(RSI_q_bins),
+                  date = first(date)) %>% 
+            filter (return !=0) -> event_summ_tbl
+        # filter out erroneous crosses (where opposite cross happened)
+        event_summ_tbl[[event]] <- as.numeric(row.names(event_summ_tbl))
+        event_summ_tbl[[event]] <- as.factor(event_summ_tbl[[event]])
+        
+        #compute mean & standard deviations (return)
+        return_mean <- mean(event_summ_tbl$return)
+        return_sd <- sd(event_summ_tbl$return)
+        #compute mean & standard deviations (days)
+        day_mean <- mean(event_summ_tbl$min_day)
+        day_sd <- sd(event_summ_tbl$min_day)
+    
+        g1 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = return,fill=rsi_q)) +
+          geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Min_Return") +
+            coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="none") 
+
+        
+        g2 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = min_day, fill=rsi_q)) +
+            geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Min_Day") +
+         coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="right")
+
+    } else {
+        # subset for rows with over condition
+        #####################
+        comp = substr(event,1,nchar(event)-3)
+        comp_tbl = event_summ_all() %>% filter_(paste(comp, "== 'over'"))
+        # comp_tbl = input2 %>% filter_(paste(comp, "== 'over'")) #for debugging
+        
+        comp_tbl$RSI_q_bins <- as.character(comp_tbl$RSI_q_bins)
+        comp_tbl$RSI_q_bins <- ifelse(is.na(comp_tbl$RSI_q_bins),"NULL",comp_tbl$RSI_q_bins)
+        
+        # create historical event_summary statistics from subset
+        #####################
+        comp_tbl %>% group_by_(event) %>%
+        summarise(max_price = max(Close),
+                  start_price = first(Close),
+                  return = round((max_price-start_price)/start_price,4),
+                  max_day = sum(which(Close == max_price)),
+                  tot_days = n(),
+                  rsi_q = first(RSI_q_bins),
+                  date = first(date))  %>% 
+            filter (return !=0) -> event_summ_tbl
+            # filter out erroneous crosses (where opposite cross happened)
+        event_summ_tbl[[event]] <- as.numeric(row.names(event_summ_tbl))
+        event_summ_tbl[[event]] <- as.factor(event_summ_tbl[[event]])
+        
+        #compute mean & standard deviations (return)
+        return_mean <- mean(event_summ_tbl$return)
+        return_sd <- sd(event_summ_tbl$return)
+        #compute mean & standard deviations (days)
+        day_mean <- mean(event_summ_tbl$max_day)
+        day_sd <- sd(event_summ_tbl$max_day)
+        
+        g1 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = return,fill=rsi_q)) +
+          geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Max_Return") +
+            coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="none")
+
+        
+        g2 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = max_day, fill=rsi_q)) +
+            geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Max_Days") +
+         coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="right")
+        
+        
+    }
+    
+    #Add candlestick plot
+    
+    input2 <- event_summ_all()
+    
+      p1 <- ggplot(input2, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input2$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank(),axis.text.x = element_blank()) + background_grid(major = "xy",minor = "none")
+    
+    ## ADD TECHNICAL INDICATORS
+    if (nrow(input2[!is.na(input2$ma50),]) > 0){
+        p1 <- p1 + geom_line(aes(x=date,y=ma50),colour="green")
+    } 
+    if (nrow(input2[!is.na(input2$ma21),]) > 0){
+        p1 <- p1 + geom_line(aes(x=date,y=ma21),color="red")
+    }
+    if (nrow(input2[!is.na(input2$ma9),]) > 0){
+        p1 <- p1 + geom_line(aes(x=date,y=ma9),colour="blue")
+    }
+    # if (nrow(input2[!is.na(input2$up),]) > 0){
+    #     p1 <- p1 + geom_line(aes(x=date,y=up),color="purple") +
+    #         geom_line(aes(x=date,y=dn),color="purple")
+    # }
+    # 
+    #WIP
+      # Add 
+    matches <- which(input2$date %in% event_summ_tbl$date)
+        
+        if(length(matches)>0){
+            
+            for (i in 1:length(matches)) {
+                loop_input <- paste("geom_vline(xintercept=input2$date[",matches[i],
+                                "],color='blue',,size=1)", sep="")
+                p1 <- p1 + eval(parse(text=loop_input))  
+            }
+        }
+      
+      
+    grid.arrange(g1,g2,p1,widths=c(1/6,1/6,2/3))
+    
+})
+
+renderPlot({
+    # try(event_chart(),silent = TRUE)
+    event_chart()
+})
+
+```
+
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+
+### Event Summary
+
+```{r}
+
+event_summ_all <- eventReactive(input$clickMe4,{
+    ticker <- toupper(input$inText4)
+    start_q <- input$daterange5[1]
+    end_q <- input$daterange5[2]
+    
+    input <- tickerQuery(ticker,input$time_frame)
+    # input <- tickerQuery(ticker,"Weekly")
+    input <- input[input$date>=start_q &
+                   input$date<=end_q,]
+    
+    input2 <- input
+    
+    ### MA CROSS FLAGS
+    ######################
+    #Price vs MAs
+    ## Above 9 sma Cross
+    input2$price_cross_9_up <- ifelse(input2$Close>input2$ma9 & 
+                                          lag(input2$Close,n=1) < lag(input2$ma9,n=1),1,NA)
+    ## Below 9 sma Cross
+    input2$price_cross_9_dn <- ifelse(input2$Close<input2$ma9 & 
+                                          lag(input2$Close,n=1) > lag(input2$ma9,n=1),1,NA)
+    # price vs 9 ma 
+    input2$price_cross_9 <- ifelse(input2$Close<input2$ma9,"under","over")
+    
+    ## Above 21 sma Cross
+    input2$price_cross_21_up <- ifelse(input2$Close>input2$ma21 & 
+                                           lag(input2$Close,n=1) < lag(input2$ma21,n=1),1,NA)
+    ## Below 21 sma Cross
+    input2$price_cross_21_dn <- ifelse(input2$Close<input2$ma21 & 
+                                           lag(input2$Close,n=1) > lag(input2$ma21,n=1),1,NA)
+    # price vs 21 ma 
+    input2$price_cross_21 <- ifelse(input2$Close<input2$ma21,"under","over")
+    
+    ## Above 50 sma Cross
+    input2$price_cross_50_up <- ifelse(input2$Close>input2$ma50 & 
+                                           lag(input2$Close,n=1) < lag(input2$ma50,n=1),1,NA)
+    ## Below 50 sma Cross
+    input2$price_cross_50_dn <- ifelse(input2$Close<input2$ma50 & 
+                                           lag(input2$Close,n=1) > lag(input2$ma50,n=1),1,NA)
+    # price vs 50 ma 
+    input2$price_cross_50 <- ifelse(input2$Close<input2$ma50,"under","over")
+    
+    # 9 vs MAs
+    ## Above 21 sma Cross
+    input2$ma9_cross_21_up <- ifelse(input2$ma9>input2$ma21 & lag(input2$ma9,n=1) < lag(input2$ma21,n=1),1,NA)
+    ## Below 21 sma Cross
+    input2$ma9_cross_21_dn <- ifelse(input2$ma9<input2$ma21 & lag(input2$ma9,n=1) > lag(input2$ma21,n=1),1,NA)
+    # 9 vs 21 ma 
+    input2$ma9_cross_21 <- ifelse(input2$ma9<input2$ma21,"under","over")
+    
+    ## Above 50 sma Cross
+    input2$ma9_cross_50_up <- ifelse(input2$ma9>input2$ma50 & lag(input2$ma9,n=1) < lag(input2$ma50,n=1),1,NA)
+    ## Below 50 sma Cross
+    input2$ma9_cross_50_dn <- ifelse(input2$ma9<input2$ma50 & lag(input2$ma9,n=1) > lag(input2$ma50,n=1),1,NA)
+    # 9 vs 50 ma 
+    input2$ma9_cross_50 <- ifelse(input2$ma9<input2$ma50,"under","over")
+    
+    
+    # 21 vs MAs
+    ## Above 9 sma Cross
+    input2$ma21_cross_9_up <- ifelse(input2$ma21>input2$ma9 & lag(input2$ma21,n=1) < lag(input2$ma9,n=1),1,NA)
+    ## Below 9 sma Cross
+    input2$ma21_cross_9_dn <- ifelse(input2$ma21<input2$ma9 & lag(input2$ma21,n=1) > lag(input2$ma9,n=1),1,NA)
+    # 21 vs 9 ma 
+    input2$ma21_cross_9 <- ifelse(input2$ma21<input2$ma9,"under","over")
+    
+    ## Above 50 sma Cross
+    input2$ma21_cross_50_up <- ifelse(input2$ma21>input2$ma50 & lag(input2$ma21,n=1) < lag(input2$ma50,n=1),1,NA)
+    ## Below 50 sma Cross
+    input2$ma21_cross_50_dn <- ifelse(input2$ma21<input2$ma50 & lag(input2$ma21,n=1) > lag(input2$ma50,n=1),1,NA)
+    # 21 vs 50 ma 
+    input2$ma21_cross_50 <- ifelse(input2$ma21<input2$ma50,"under","over")
+    
+    
+    # 50 vs MAs
+    ## Above 9 sma Cross
+    input2$ma50_cross_9_up <- ifelse(input2$ma50>input2$ma9 & lag(input2$ma50,n=1) < lag(input2$ma9,n=1),1,NA)
+    ## Below 9 sma Cross
+    input2$ma50_cross_9_dn <- ifelse(input2$ma50<input2$ma9 & lag(input2$ma50,n=1) > lag(input2$ma9,n=1),1,NA)
+    # 50 vs 9 ma 
+    input2$ma50_cross_9 <- ifelse(input2$ma50<input2$ma9,"under","over")
+    
+    ## Above 21 sma Cross
+    input2$ma50_cross_21_up <- ifelse(input2$ma50>input2$ma21 & lag(input2$ma50,n=1) < lag(input2$ma21,n=1),1,NA)
+    ## Below 21 sma Cross
+    input2$ma50_cross_21_dn <- ifelse(input2$ma50<input2$ma21 & lag(input2$ma50,n=1) > lag(input2$ma21,n=1),1,NA)
+    # 50 vs 21 ma 
+    input2$ma50_cross_21 <- ifelse(input2$ma50<input2$ma21,"under","over")
+    
+    #MACD cross
+    input2$macd_cross_up <- ifelse(input2$macd>input2$signal & lag(input2$macd,n=1) < lag(input2$signal,n=1),1,NA)
+    input2$macd_cross_dn <- ifelse(input2$macd<input2$signal & lag(input2$macd,n=1) > lag(input2$signal,n=1),1,NA)
+    input2$macd_cross <- ifelse(input2$macd<input2$signal,"under","over")
+    
+    #RSI Quantile
+    perc.rank <- function(x) trunc(rank(x,na.last = NA))/sum(!is.na(x))
+    xr <- perc.rank((input2$RSI))
+    xr_add <- rep(NA,nrow(input2)-length(xr))
+    xr <- c(xr_add,xr)
+    input2$RSI_q <- xr
+    
+    q_cuts <- seq(0,1,.2)
+    input2$RSI_q_bins <- cut(input2$RSI_q,q_cuts,right=FALSE,include.lowest = TRUE)
+    
+    
+    ### MA CROSS SERIES
+    ######################
+    events = c("price_cross_9_up","price_cross_9_dn","price_cross_21_up","price_cross_21_dn","price_cross_50_up",
+               "price_cross_50_dn","ma9_cross_21_up","ma9_cross_21_dn","ma9_cross_50_up","ma9_cross_50_dn",
+               "ma21_cross_9_up","ma21_cross_9_dn","ma21_cross_50_up","ma21_cross_50_dn","ma50_cross_9_up",
+               "ma50_cross_9_dn","ma50_cross_21_up","ma50_cross_21_dn","macd_cross_up","macd_cross_dn")
+    
+    # Drag down event counters per occurance
+    for(j in 1:length(events)){
+            event = events[j]
+            counter = 0
+            for (i in 1:nrow(input2)){
+                if(!is.na(input2[,event][i])){
+                    counter = counter + 1
+                }
+                input2[,event][i] = counter
+            }
+    }
+    
+    input2
+    
+})
+
+
+event_summ_tbl <- reactive({
+    
+    input2 <- event_summ_all()
+    
+    # Make table
+    event_summary <- as.data.frame(matrix(nrow=20,ncol=10))
+    colnames(event_summary) <- c("event",
+                       "avg_farthest_return",
+                       "avg_farthest_day",
+                       "avg_recross_days",
+                       "total_occurances",
+                       "current_condition",
+                       "date_last_event",
+                       "days_since_event",
+                       "return_since_event")
+    event_summary$date_last_event = as.Date(event_summary$date_last_event)
+    ############################
+    # add columns
+    event_summary$event[1] = "price_cross_9_up"
+    event_summary$event[2] = "price_cross_9_dn"
+    event_summary$event[3] = "price_cross_21_up"
+    event_summary$event[4] = "price_cross_21_dn"
+    event_summary$event[5] = "price_cross_50_up"
+    event_summary$event[6] = "price_cross_50_dn"
+    event_summary$event[7] = "ma9_cross_21_up"
+    event_summary$event[8] = "ma9_cross_21_dn"
+    event_summary$event[9] = "ma9_cross_50_up"
+    event_summary$event[10] = "ma9_cross_50_dn"
+    event_summary$event[11] = "ma21_cross_9_up"
+    event_summary$event[12] = "ma21_cross_9_dn"
+    event_summary$event[13] = "ma21_cross_50_up"
+    event_summary$event[14] = "ma21_cross_50_dn"
+    event_summary$event[15] = "ma50_cross_9_up"
+    event_summary$event[16] = "ma50_cross_9_dn"
+    event_summary$event[17] = "ma50_cross_21_up"
+    event_summary$event[18] = "ma50_cross_21_dn"
+    event_summary$event[19] = "macd_cross_up"
+    event_summary$event[20] = "macd_cross_dn"
+    
+    for(k in 1:nrow(event_summary)){
+        event = event_summary$event[k]
+        if(substr(event,nchar(event)-1,nchar(event))=="dn"){
+            # subset for rows with under condition
+            #####################
+            comp = substr(event,1,nchar(event)-3)
+            comp_tbl = input2 %>% filter_(paste(comp, "== 'under'"))
+            #####################
+            # create historical event_summary statistics from subset
+            #####################
+            comp_tbl %>% group_by_(event) %>%
+            summarise(min_price = min(Close),
+                      start_price = first(Close),
+                      return = round((min_price-start_price)/start_price,4),
+                      min_day = sum(which(Close == min_price)),
+                      tot_days = n()) %>% 
+                filter (return !=0) %>% # filter out erroneous crosses (where opposite cross happened)
+            summarise(total_occurances = n(),
+                      avg_min_return = mean(return,na.rm=TRUE),
+                      avg_min_day = mean(min_day),
+                      avg_tot_days = mean(tot_days)) -> summ_tbl
+        } else {
+            # subset for rows with over condition
+            #####################
+            comp = substr(event,1,nchar(event)-3)
+            comp_tbl = input2 %>% filter_(paste(comp, "== 'over'"))
+            # create historical event_summary statistics from subset
+            #####################
+            comp_tbl %>% group_by_(event) %>%
+            summarise(max_price = max(Close),
+                      start_price = first(Close),
+                      return = round((max_price-start_price)/start_price,4),
+                      max_day = sum(which(Close == max_price)),
+                      tot_days = n()) %>%
+                filter (return !=0) %>% # filter out erroneous crosses (where opposite cross happened)
+            summarise(total_occurances = n(),
+                      avg_max_return = mean(return,na.rm=TRUE),
+                      avg_max_day = mean(max_day),
+                      avg_tot_days = mean(tot_days)) -> summ_tbl
+        }    
+        # create current condition summary
+        # current condition
+        curr_row = input2[nrow(input2),]
+        event_summary$current_condition[k] = curr_row %>% select_(comp)
+        event_count = curr_row %>% select_(event)
+        curr_dat = input2 %>% filter_(paste0(event,"==",event_count))
+        # days since event
+        days = nrow(curr_dat)
+        event_summary$date_last_event[k] = curr_dat$date[1]
+        event_summary$days_since_event[k] = days
+        # return since event
+        event_summary$return_since_event[k] = (curr_dat$Close[days] - curr_dat$Close[1])/curr_dat$Close[1]
+        #fill event_summary table
+        if(substr(event,nchar(event)-1,nchar(event))=="dn"){
+            event_summary$avg_farthest_return[k] = summ_tbl$avg_min_return
+            event_summary$avg_farthest_day[k] = summ_tbl$avg_min_day
+        } else {
+            event_summary$avg_farthest_return[k] = summ_tbl$avg_max_return
+            event_summary$avg_farthest_day[k] = summ_tbl$avg_max_day
+        }
+        event_summary$avg_recross_days[k] = summ_tbl$avg_tot_days
+        event_summary$total_occurances[k] = summ_tbl$total_occurances
+    }
+        event_summary$avg_farthest_return <- round(event_summary$avg_farthest_return,4)
+        event_summary$avg_farthest_day <- round(event_summary$avg_farthest_day,0)
+        event_summary$avg_recross_days <- round(event_summary$avg_recross_days,0)
+        event_summary$return_since_event <- round(event_summary$return_since_event,4)
+        event_summary[,10] <- NULL
+        event_summary %>% arrange(days_since_event) -> event_summary
+        event_summary
+    })
+
+dataTableOutput("tbl3")
+output$tbl3 <- renderDataTable({
+    event_summ_tbl()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+
+
+```   
+
+
+### Current Distribution + Event Summary
+    
+```{r}
+
+
+```
+
+Fundamentals
+=====================================  
+
+Inputs {.sidebar}
+-------------------------------------
+
+```{r event_page_financials}
+## Add checkboxes
+
+textInput("inText_fins","Ticker Search:","")
+
+actionButton("clickMe_fins", label = "Search")
+```
+
+Financials
+-------------------------------------
+
+```{r financials}
+ library(XML)
+
+ tableSumm_fins <- eventReactive(input$clickMe_fins,{
+
+     ticker <- input$inText_fins
+     website <- paste0("http://finviz.com/quote.ashx?t=",ticker)
+     fvResult <- readHTMLTable(website)
+
+      # transform list into df
+     try(fin_hl <- fvResult[[4]], silent = FALSE)
+     try(fin_hl <- fin_hl[14:nrow(fin_hl),], silent = FALSE)
+     try(df <- data.frame(Category=character(0), Value=character(0)),silent = FALSE)
+
+     for(i in 1:(ncol(fin_hl)/2)) {
+       try(tmp <- fin_hl[,((i-1)*2+1):(i*2)], silent = FALSE)
+       try(names(tmp) <- c("Category","Value"), silent = FALSE)
+       try(df <- rbind(df, tmp), silent = FALSE)
+     }
+
+     df <- df %>% subset(Category %in% c("Market Cap","Income","Sales","Sales past 5Y","Sales Q/Q",
+                                         "EPS (ttm)","EPS Q/Q","EPS past 5Y","P/E",
+                                         "P/FCF","Gross Margin","Oper. Margin","Profit Margin",
+                                         "Shs Outstand","Short Float","52W Range"))
+
+     df
+   })
+
+ renderDataTable({
+     tableSumm_fins()
+ },
+ options = list(
+     scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+ )
+
+```
+
+TO DO LIST
+=====================================  
+
+Options Activity
+    * Change chart type to bars?
+    * remove 'date' axis title from chart
+
+    
+Technicals - Chart
+    * Add more date tick-mark intervals to X axis
+    * Add current value marker on far right
+    * Add checkmark option to include/exclude TA indicators
+    * Add legend for top indicators
+    * Add checkmark option to HL events
+    * Add checkmark to show option trades
+    * Add option to choose weekly candle option
+    * Add tooltip hovering?
+
+
+Technicals - Events
+    * Revise cross event logic to not double count cross (pos + neg)
+        - Fixed 7/26
+    * Add legend for mean/sd line/interval on chart
+        - Added
+    * Color code bars by RSI quintile
+        - Added/Fix with legend colors to be constant
+    * Change color coded bars to better color pallete
+    * Fix cross logic to not count days where the moving average was NA
+    * Add events to chart
+        * add first date to each event
+        * add horizontol line + event count to chart
+        
+    * add color/value bars to table?
+    * Re-word following columns:
+        * avg_farthest_return
+        * avg_farthest_day
+        * avg_recross_days
+        * tot_occurances
+        * current_condition
+        * days_since_event
+        * return_since_event
+    
+Fundamentals
+    * Add Sidebar selector
+    * switch source to yhoo or google
+    
+
+
+
+
