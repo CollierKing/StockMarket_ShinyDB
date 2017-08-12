@@ -506,10 +506,9 @@ chart <- reactive({
             geom_boxplot(stat='identity') +
             # theme_dark() +
             ggtitle(paste0(ticker,": Daily")) +
-            xlab('') + 
-            ylab('') + 
+            ylab('') + xlab('') +
             theme(legend.position='none') +
-            scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y")) 
+            scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y")) +             theme(legend.position='none',axis.title.x = element_blank())
 
     ## ADD TECHNICAL INDICATORS
     # if (nrow(input[!is.na(input$ma50),]) > 0){
@@ -819,12 +818,15 @@ event_chart <- reactive({
     
         g1 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = return,fill=rsi_q)) +
           geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Min_Return") +
-            coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="none") 
-
+            coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +  
+            scale_fill_manual(values = c("[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4")) + xlab("") +ylab("") + theme(legend.position="none")
+            
         
         g2 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = min_day, fill=rsi_q)) +
             geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Min_Day") +
-         coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="right")
+         coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +    
+            scale_fill_manual(values = c("[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4")) + xlab("") +ylab("") + theme(legend.position="none")
+            
 
     } else {
         # subset for rows with over condition
@@ -859,22 +861,20 @@ event_chart <- reactive({
         day_sd <- sd(event_summ_tbl$max_day)
         
         g1 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = return,fill=rsi_q)) +
-          geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Max_Return") +
-            coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="none")
+          geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Max_Return") + coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) + scale_fill_manual(values = c("[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4")) + xlab("") +ylab("") + theme(legend.position="none")
 
-        
         g2 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = max_day, fill=rsi_q)) +
-            geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Max_Days") +
-         coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +            scale_fill_manual(values= c("tomato1","orange", "gold2", "lightgreen","springgreen4","grey")) + xlab("") +ylab("") + theme(legend.position="right")
+            geom_bar(stat = "identity",alpha = 0.7) + ggtitle("Max_Days") + coord_flip() + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) + scale_fill_manual(values = c("[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4")) + xlab("") +ylab("") + theme(legend.position="none")
         
         
     }
     
     #Add candlestick plot
+    #WIP
     
     input2 <- event_summ_all()
     
-      p1 <- ggplot(input2, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input2$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank(),axis.text.x = element_blank()) + background_grid(major = "xy",minor = "none")
+      p1 <- ggplot(input2, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input2$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste(toupper(input$inText4),": ",input$time_frame2))
     
     ## ADD TECHNICAL INDICATORS
     if (nrow(input2[!is.na(input2$ma50),]) > 0){
@@ -894,18 +894,66 @@ event_chart <- reactive({
     #WIP
       # Add 
     matches <- which(input2$date %in% event_summ_tbl$date)
-        
-        if(length(matches)>0){
-            
-            for (i in 1:length(matches)) {
-                loop_input <- paste("geom_vline(xintercept=input2$date[",matches[i],
-                                "],color='blue',,size=1)", sep="")
-                p1 <- p1 + eval(parse(text=loop_input))  
-            }
+    
+    #need to make matches a 2-column DF with the index in column 1 and quantile range in column 2
+    rsi_quantiles <- input2[matches,]
+    # rsi_quantiles$RSI_q_bins
+    
+    # "tomato1","orange", "gold2", "lightgreen","springgreen4","grey"
+    
+        # if(length(matches)>0){
+        if (nrow(rsi_quantiles)>0){
+            for (i in 1:nrow(rsi_quantiles)) {
+                if (is.na(rsi_quantiles$RSI_q_bins[i])){
+                    
+                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                "],color='grey',,size=1)", sep="")
+                    p1 <- p1 + eval(parse(text=loop_input))     
+                    
+                } else if (rsi_quantiles$RSI_q_bins[i]=="[0,0.2)"){
+                    
+                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                "],color='tomato1',,size=1)", sep="")
+                    p1 <- p1 + eval(parse(text=loop_input)) 
+                
+                } else if (rsi_quantiles$RSI_q_bins[i]=="[0.2,0.4)"){
+                    
+                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                "],color='orange',,size=1)", sep="")
+                    p1 <- p1 + eval(parse(text=loop_input))      
+                    
+                } else if (rsi_quantiles$RSI_q_bins[i]=="[0.4,0.6)"){
+                    
+                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                "],color='gold2',,size=1)", sep="")
+                    p1 <- p1 + eval(parse(text=loop_input))      
+                    
+                } else if (rsi_quantiles$RSI_q_bins[i]=="[0.6,0.8)"){
+                    
+                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                "],color='lightgreen',,size=1)", sep="")
+                    p1 <- p1 + eval(parse(text=loop_input))      
+                    
+                } else if (rsi_quantiles$RSI_q_bins[i]=="[0.8,1]"){
+                    
+                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                "],color='springgreen4',,size=1)", sep="")
+                    p1 <- p1 + eval(parse(text=loop_input))      
+                }
+        }
         }
       
+    #WIP 
+    
+p2 <- ggplot() +
+    geom_line(data=input2,aes(x=date,y=macd,color="red")) +
+    geom_line(data=input2,aes(x=date,y=signal,color="blue")) +
+    scale_x_bd(business.dates=input2$date, max.major.breaks=10, labels=date_format("%b '%y")) + guides(color=FALSE) + xlab("MACD") + ylab("") + theme(axis.title.x = element_blank(),axis.text.x = element_blank()) + background_grid(major = "xy",minor = "none")
       
-    grid.arrange(g1,g2,p1,widths=c(1/6,1/6,2/3))
+# p_test <- grid.arrange(p1,p2,heights=c(3/4,1/4))
+p_test <- plot_grid(p1,p2,ncol=1,align='v', rel_heights = c(.75,.25)) 
+
+    grid.arrange(g1,g2,p_test,widths=c(1/6,1/6,2/3))
     
 })
 
@@ -929,7 +977,7 @@ event_summ_all <- eventReactive(input$clickMe4,{
     start_q <- input$daterange5[1]
     end_q <- input$daterange5[2]
     
-    input <- tickerQuery(ticker,input$time_frame)
+    input <- tickerQuery(ticker,input$time_frame2)
     # input <- tickerQuery(ticker,"Weekly")
     input <- input[input$date>=start_q &
                    input$date<=end_q,]
@@ -1194,46 +1242,380 @@ Inputs {.sidebar}
 
 textInput("inText_fins","Ticker Search:","")
 
+selectInput("reporting_per", label = "Choose Fin. Statement Type: ",
+             list(`Annual` = "annual",
+                `Quarterly` = "quarter"), selected = "Quarterly")
+
 actionButton("clickMe_fins", label = "Search")
 ```
 
-Financials
--------------------------------------
+
 
 ```{r financials}
- library(XML)
+ # library(XML)
+ # 
+ # tableSumm_fins <- eventReactive(input$clickMe_fins,{
+ # 
+ #     ticker <- input$inText_fins
+ #     website <- paste0("http://finviz.com/quote.ashx?t=",ticker)
+ #     fvResult <- readHTMLTable(website)
+ # 
+ #      # transform list into df
+ #     try(fin_hl <- fvResult[[4]], silent = FALSE)
+ #     try(fin_hl <- fin_hl[14:nrow(fin_hl),], silent = FALSE)
+ #     try(df <- data.frame(Category=character(0), Value=character(0)),silent = FALSE)
+ # 
+ #     for(i in 1:(ncol(fin_hl)/2)) {
+ #       try(tmp <- fin_hl[,((i-1)*2+1):(i*2)], silent = FALSE)
+ #       try(names(tmp) <- c("Category","Value"), silent = FALSE)
+ #       try(df <- rbind(df, tmp), silent = FALSE)
+ #     }
+ # 
+ #     df <- df %>% subset(Category %in% c("Market Cap","Income","Sales","Sales past 5Y","Sales Q/Q",
+ #                                         "EPS (ttm)","EPS Q/Q","EPS past 5Y","P/E",
+ #                                         "P/FCF","Gross Margin","Oper. Margin","Profit Margin",
+ #                                         "Shs Outstand","Short Float","52W Range"))
+ # 
+ #     df
+ #   })
+ # 
+ # renderDataTable({
+ #     tableSumm_fins()
+ # },
+ # options = list(
+ #     scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+ # )
 
- tableSumm_fins <- eventReactive(input$clickMe_fins,{
+```
 
-     ticker <- input$inText_fins
-     website <- paste0("http://finviz.com/quote.ashx?t=",ticker)
-     fvResult <- readHTMLTable(website)
+Row 
+-------------------------------------
+    
+### Chart 1
+    
+```{r fin-plot}
 
-      # transform list into df
-     try(fin_hl <- fvResult[[4]], silent = FALSE)
-     try(fin_hl <- fin_hl[14:nrow(fin_hl),], silent = FALSE)
-     try(df <- data.frame(Category=character(0), Value=character(0)),silent = FALSE)
+finplot <- eventReactive(input$clickMe_fins,{
+    
+    ticker <- toupper(input$inText_fins)
+    input <- tickerQuery(ticker,"Weekly")
+    
+    p1 <- ggplot(input, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+    
+    p1
 
-     for(i in 1:(ncol(fin_hl)/2)) {
-       try(tmp <- fin_hl[,((i-1)*2+1):(i*2)], silent = FALSE)
-       try(names(tmp) <- c("Category","Value"), silent = FALSE)
-       try(df <- rbind(df, tmp), silent = FALSE)
-     }
+})
 
-     df <- df %>% subset(Category %in% c("Market Cap","Income","Sales","Sales past 5Y","Sales Q/Q",
-                                         "EPS (ttm)","EPS Q/Q","EPS past 5Y","P/E",
-                                         "P/FCF","Gross Margin","Oper. Margin","Profit Margin",
-                                         "Shs Outstand","Short Float","52W Range"))
+renderPlot(
+    finplot()
+)
 
-     df
-   })
+```
+   
+Row {.tabset .tabset-fade}
+-------------------------------------
+  
+```{r fin-all}
 
- renderDataTable({
-     tableSumm_fins()
- },
- options = list(
-     scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
- )
+tbl_all <- eventReactive(input$clickMe_fins,{
+    
+    ticker <- toupper(input$inText_fins)
+     tbl <- tq_get(ticker,get="financials")
+     tbl
+})
+
+tbl_ratios_all <- eventReactive(input$clickMe_fins,{
+    
+    ticker <- toupper(input$inText_fins)
+    # ticker <- "R"
+    tbl_ratios_all <- tq_get(ticker,get="key.ratios")
+    tbl_ratios_all
+    
+})
+
+```
+
+### Income Statement
+
+```{r fins_is}
+
+tbl_is <- eventReactive(input$clickMe_fins,{
+ 
+    tbl_all() %>%
+    # aapl_fins %>%
+        filter(type=="IS") %>% 
+        # select (quarter) %>%
+        select (input$reporting_per) %>%
+        unnest() %>%
+        spread(date,value) %>%
+        select (-group)
+    
+})
+
+# renderDataTable(
+#     tbl_is()
+# )
+
+dataTableOutput("tbl_is")
+
+output$tbl_is <- renderDataTable({
+    tbl_is()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+
+```   
+ 
+### Balance Sheet
+    
+```{r fin-bs}
+
+tbl_bs <- eventReactive(input$clickMe_fins,{
+ 
+    tbl_all() %>%
+    # aapl_fins %>%
+        filter(type=="BS") %>% 
+        # select (quarter) %>%
+        select (input$reporting_per) %>%
+        unnest() %>%
+        spread(date,value) %>%
+        select (-group)
+    
+})
+
+
+dataTableOutput("tbl_bs")
+
+output$tbl_bs <- renderDataTable({
+    tbl_bs()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+
+```
+
+### Cash Flow Statement
+    
+```{r fin-cf}
+
+
+tbl_cf <- eventReactive(input$clickMe_fins,{
+ 
+    tbl_all() %>%
+    # aapl_fins %>%
+        filter(type=="BS") %>% 
+        # select (quarter) %>%
+        select (input$reporting_per) %>%
+        unnest() %>%
+        spread(date,value) %>%
+        select (-group)
+    
+})
+
+
+dataTableOutput("tbl_cf")
+
+output$tbl_cf <- renderDataTable({
+    tbl_cf()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+
+```
+
+### Valuation Ratios
+
+```{r val-ratios}
+
+tbl_ratios_valuation <- eventReactive(input$clickMe_fins,{
+ 
+    tbl_ratios_all() %>%
+    # tbl_ratios_all %>%
+        filter(section=="Valuation Ratios") %>% 
+        unnest() %>%
+        mutate(value =round(value,2)) %>%
+        na.omit() %>%
+        spread(date,value) %>%
+        select (-section,-sub.section,-group)
+    
+})
+
+
+dataTableOutput("tbl_ratios_valuation")
+
+output$tbl_ratios_valuation <- renderDataTable({
+    tbl_ratios_valuation()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+
+```
+
+### Financial Ratios
+
+```{r fin-ratios}
+
+tbl_ratios_financial <- eventReactive(input$clickMe_fins,{
+ 
+    tbl_ratios_all() %>%
+    # tbl_ratios_all %>%
+        filter(section=="Financials") %>% 
+        unnest() %>%
+        na.omit() %>%
+        spread(date,value) %>%
+        select (-section,-sub.section,-group) 
+    
+})
+
+
+dataTableOutput("tbl_ratios_financial")
+
+output$tbl_ratios_financial <- renderDataTable({
+    tbl_ratios_financial()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+
+```
+
+### Profitability Ratios
+
+```{r profit-ratios}
+
+tbl_ratios_profitability <- eventReactive(input$clickMe_fins,{
+ 
+    tbl_ratios_all() %>%
+    # tbl_ratios_all %>%
+        filter(section=="Profitability") %>% 
+        unnest() %>%
+        na.omit() %>%
+        spread(date,value) %>%
+        select (-section,-group) 
+    
+})
+
+
+dataTableOutput("tbl_ratios_profitability")
+
+output$tbl_ratios_profitability <- renderDataTable({
+    tbl_ratios_profitability()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+
+```
+
+### Growth Ratios
+
+```{r growth-ratios}
+
+tbl_ratios_growth <- eventReactive(input$clickMe_fins,{
+ 
+    tbl_ratios_all() %>%
+    # tbl_ratios_all %>%
+        filter(section=="Growth") %>% 
+        unnest() %>%
+        na.omit() %>%
+        spread(date,value) %>%
+        select (-section,-group) 
+    
+})
+
+dataTableOutput("tbl_ratios_growth")
+
+output$tbl_ratios_growth <- renderDataTable({
+    tbl_ratios_growth()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+
+```
+
+### Cash Flow Ratios
+
+```{r cf-ratios}
+
+tbl_ratios_cashflow <- eventReactive(input$clickMe_fins,{
+ 
+    tbl_ratios_all() %>%
+    # tbl_ratios_all %>%
+        filter(section=="Cash Flow") %>% 
+        unnest() %>%
+        na.omit() %>%
+        spread(date,value) %>%
+        select (-section,-sub.section,-group) 
+    
+})
+
+dataTableOutput("tbl_ratios_cashflow")
+
+output$tbl_ratios_cashflow <- renderDataTable({
+    tbl_ratios_cashflow()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+
+```
+
+### Financial Health Ratios
+
+```{r finhealth-ratios}
+
+tbl_ratios_financial_health <- eventReactive(input$clickMe_fins,{
+ 
+    tbl_ratios_all() %>%
+    # tbl_ratios_all %>%
+        filter(section=="Financial Health") %>% 
+        unnest() %>%
+        na.omit() %>%
+        spread(date,value) %>%
+        select (-section,-group) 
+    
+})
+
+dataTableOutput("tbl_ratios_financial_health")
+
+output$tbl_ratios_financial_health <- renderDataTable({
+    tbl_ratios_financial_health()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
+
+```
+
+### Efficiency Ratios
+
+```{r efficiency-ratios}
+
+tbl_ratios_efficiency <- eventReactive(input$clickMe_fins,{
+ 
+    tbl_ratios_all() %>%
+    # tbl_ratios_all %>%
+        filter(section=="Efficiency Ratios") %>% 
+        unnest() %>%
+        na.omit() %>%
+        spread(date,value) %>%
+        select (-section,-sub.section,-group) 
+    
+})
+
+dataTableOutput("tbl_ratios_efficiency")
+
+output$tbl_ratios_efficiency <- renderDataTable({
+    tbl_ratios_efficiency()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
 
 ```
 
@@ -1241,9 +1623,8 @@ TO DO LIST
 =====================================  
 
 Options Activity
-    * Change chart type to bars?
-    * remove 'date' axis title from chart
-
+* Add color bars to tables?
+* Add export buttons to tables?
     
 Technicals - Chart
     * Add more date tick-mark intervals to X axis
@@ -1259,15 +1640,14 @@ Technicals - Chart
 Technicals - Events
     * Revise cross event logic to not double count cross (pos + neg)
         - Fixed 7/26
-    * Add legend for mean/sd line/interval on chart
-        - Added
-    * Color code bars by RSI quintile
-        - Added/Fix with legend colors to be constant
-    * Change color coded bars to better color pallete
+    * Add legend for colors to sidebar
+    * Add mean/sd line/interval on chart
     * Fix cross logic to not count days where the moving average was NA
     * Add events to chart
-        * add first date to each event
-        * add horizontol line + event count to chart
+        * check why some recent weekly events not showing up
+            ex: ma21_cross_9_dn (GS)
+            ex: price cross 21 up (GS)
+        
         
     * add color/value bars to table?
     * Re-word following columns:
@@ -1282,6 +1662,9 @@ Technicals - Events
 Fundamentals
     * Add Sidebar selector
     * switch source to yhoo or google
+    
+To candlestick charts
+    * Add comparisons vs INDEX or another stock
     
 
 
