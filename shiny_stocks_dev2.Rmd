@@ -1247,6 +1247,9 @@ selectInput("reporting_per", label = "Choose Fin. Statement Type: ",
                 `Quarterly` = "quarter"), selected = "Quarterly")
 
 actionButton("clickMe_fins", label = "Search")
+
+actionButton('clear1', 'Clear Rows')
+
 ```
 
 
@@ -1288,10 +1291,10 @@ actionButton("clickMe_fins", label = "Search")
 
 ```
 
-Row 
+Row {.tabset .tabset-fade}
 -------------------------------------
     
-### Chart 1
+### Price Comparison
     
 ```{r fin-plot}
 
@@ -1302,7 +1305,43 @@ finplot <- eventReactive(input$clickMe_fins,{
     
     p1 <- ggplot(input, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
     
-    p1
+    # p1
+    
+    #WIP
+    #Edit -
+    #do this in separate plot and then grid arrange them, then dont need to worry about rescaling a second axis?
+    # if table row is selected, add line
+    test2 <- test %>% gather(date,val,-category)
+    test2 <- test2[test2$category=="Revenue",]
+    test2$date <- as.Date(test2$date)
+    
+
+input$cross_val <- NA
+    
+for (k in 1:nrow(test2)){
+    for (i in 1:nrow(input)){
+        if(is.na(input$cross_val[i])){
+            input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
+          input$date[i+1]),test2$val[k],NA)
+         
+        #cleanup
+        if(i > 1){
+            if(!is.na(input$cross_val[i]) &
+           !is.na(input$cross_val[i-1])){
+            input$cross_val[i-1] <- NA
+           }
+        }
+        }
+    }
+}
+    
+
+p2 <- ggplot(input) + geom_col(data = input, aes(date, cross_val/6, fill = "myfill"))
+
+    # p1 <- p1 + scale_y_continuous(sec.axis = sec_axis(~.*5, name = "Revenue"))
+    # 
+    # p1 + geom_col(data = input, aes(date, cross_val/6, fill = "myfill"))
+    
 
 })
 
@@ -1311,7 +1350,25 @@ renderPlot(
 )
 
 ```
-   
+  
+
+### Absolute Comparison
+
+```{r testing}
+
+renderText(
+    
+    input$tbl_is_rows_selected
+)
+
+proxy = dataTableProxy('tbl_is')
+
+observeEvent(input$clear1, {
+    proxy %>% selectRows(NULL)
+})
+
+```
+
 Row {.tabset .tabset-fade}
 -------------------------------------
   
@@ -1342,7 +1399,7 @@ tbl_ratios_all <- eventReactive(input$clickMe_fins,{
 tbl_is <- eventReactive(input$clickMe_fins,{
  
     tbl_all() %>%
-    # aapl_fins %>%
+    # tbl %>%
         filter(type=="IS") %>% 
         # select (quarter) %>%
         select (input$reporting_per) %>%
@@ -1660,8 +1717,8 @@ Technicals - Events
         * return_since_event
     
 Fundamentals
-    * Add Sidebar selector
-    * switch source to yhoo or google
+    * some ratios are not showing up for certain tickers
+        - aapl (valuation & efficiency)
     
 To candlestick charts
     * Add comparisons vs INDEX or another stock
