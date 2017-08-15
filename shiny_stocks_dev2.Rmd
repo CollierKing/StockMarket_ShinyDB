@@ -1298,56 +1298,123 @@ Row {.tabset .tabset-fade}
     
 ```{r fin-plot}
 
-finplot <- eventReactive(input$clickMe_fins,{
+# finplot <- eventReactive(input$clickMe_fins,{
+finplot <- reactive({
     
     ticker <- toupper(input$inText_fins)
     input <- tickerQuery(ticker,"Weekly")
     
-    p1 <- ggplot(input, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
-    
+
+    # event <- event_summ_tbl()[input$tbl3_rows_selected,]$event
     # p1
     
     #WIP
     #Edit -
     #do this in separate plot and then grid arrange them, then dont need to worry about rescaling a second axis?
     # if table row is selected, add line
-    test2 <- test %>% gather(date,val,-category)
-    test2 <- test2[test2$category=="Revenue",]
+    
+    if(!is.null(input$tbl_is_rows_selected)){
+        row <- tbl_is_rows_selected
+    } else
+    if(!is.null(input$tbl_bs_rows_selected)){
+        row <- tbl_bs_rows_selected
+    } else
+    if(!is.null(input$tbl_cf_rows_selected)){
+        row <- tbl_cf_rows_selected
+    } else 
+    if(!is.null(input$tbl_ratios_valuation_rows_selected)){
+        row <- tbl_ratios_valuation_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_financial_rows_selected)){
+        row <- tbl_ratios_financial_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_profitability_rows_selected)){
+        row <- tbl_ratios_profitability_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_growth_rows_selected)){
+        row <- tbl_ratios_growth_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_cashflow_rows_selected)){
+        row <- tbl_ratios_cashflow_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_financial_health_rows_selected)){
+        row <- tbl_ratios_financial_health_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_efficiency_rows_selected)){
+        row <- tbl_ratios_efficiency_rows_selected
+    }
+    
+    
+    # test2 <- test %>% gather(date,val,-category) #debugging
+    test2 <- selectedtbl() %>% gather(date,val,-category)
+    
+    # test2 <- test2[row,]$category
+    
+    # cat <- selected_tbl()[input$selected_tbl_rows_selected,]$category
+    cat <- test2[row,]$category #debugging
+    
+    test2 <- test2 %>% filter(
+        category == cat
+    )
+    # test2 <- test2[test2$category=="Revenue",] #debugging
+    
+
     test2$date <- as.Date(test2$date)
     
 
 input$cross_val <- NA
     
-for (k in 1:nrow(test2)){
-    for (i in 1:nrow(input)){
-        if(is.na(input$cross_val[i])){
-            input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
-          input$date[i+1]),test2$val[k],NA)
-         
-        #cleanup
-        if(i > 1){
-            if(!is.na(input$cross_val[i]) &
-           !is.na(input$cross_val[i-1])){
-            input$cross_val[i-1] <- NA
-           }
-        }
-        }
-    }
-}
+# for (k in 1:nrow(test2)){
+#     for (i in 1:nrow(input)){
+#         if(is.na(input$cross_val[i])){
+#             input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
+#           input$date[i+1]),test2$val[k],NA)
+#          
+#         #cleanup
+#         if(i > 1){
+#             if(!is.na(input$cross_val[i]) &
+#            !is.na(input$cross_val[i-1])){
+#             input$cross_val[i-1] <- NA
+#            }
+#         }
+#         }
+#     }
+# }
     
 
-p2 <- ggplot(input) + geom_col(data = input, aes(date, cross_val/6, fill = "myfill"))
+# cross_val_dates <- input[!is.na(input$cross_val),]$date
 
-    # p1 <- p1 + scale_y_continuous(sec.axis = sec_axis(~.*5, name = "Revenue"))
-    # 
-    # p1 + geom_col(data = input, aes(date, cross_val/6, fill = "myfill"))
-    
+# input_plot <- input[input$date>=cross_val_dates[1],]
+
+
+# p1 <- ggplot(input, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+# 
+# p2 <- ggplot() + geom_point(data=input,aes(x=date,y=cross_val,color="red"),size=5) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(0,max(input$cross_val))) + ggtitle(paste0(test2$category))
+
+
+
+# p1 <- ggplot(input_plot, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+# 
+# p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=5) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(0,max(input_plot$cross_val))) + ggtitle(paste0(test2$category))
+
+
+
+# p_test <- plot_grid(p1,p2,ncol=1,align='v',rel_heights = c(.75,.25))
+
+# p_test
+# input_plot
+test2
 
 })
 
-renderPlot(
+# renderPlot(
+#     finplot()
+# )
+
+renderDataTable(
     finplot()
 )
+
 
 ```
   
@@ -1356,16 +1423,125 @@ renderPlot(
 
 ```{r testing}
 
-renderText(
-    
-    input$tbl_is_rows_selected
+
+# textOutput("row_txt")
+
+dataTableOutput("selectedtbl")
+
+output$selectedtbl <- renderDataTable({
+    selectedtbl()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
 )
 
-proxy = dataTableProxy('tbl_is')
+
+selectedtbl <- reactive({
+
+    if(!is.null(input$tbl_is_rows_selected)){
+        tbl_is()
+    } else
+    if(!is.null(input$tbl_bs_rows_selected)){
+        tbl_bs()
+    } else
+    if(!is.null(input$tbl_cf_rows_selected)){
+        tbl_cf()
+    } else 
+    if(!is.null(input$tbl_ratios_valuation_rows_selected)){
+        tbl_ratios_valuation()
+    } else
+    if(!is.null(input$tbl_ratios_financial_rows_selected)){
+        tbl_ratios_financial()
+    } else
+    if(!is.null(input$tbl_ratios_profitability_rows_selected)){
+        tbl_ratios_profitability()
+    } else
+    if(!is.null(input$tbl_ratios_growth_rows_selected)){
+        tbl_ratios_growth()
+    } else
+    if(!is.null(input$tbl_ratios_cashflow_rows_selected)){
+        tbl_ratios_cashflow()
+    } else
+    if(!is.null(input$tbl_ratios_financial_health_rows_selected)){
+        tbl_ratios_financial_health()
+    } else
+    if(!is.null(input$tbl_ratios_efficiency_rows_selected)){
+        tbl_ratios_efficiency()
+    }
+}    
+)
+
+renderDataTable(
+    selected_tbl()
+)
+
+proxy_is = dataTableProxy('tbl_is')
+proxy_bs = dataTableProxy('tbl_bs')
+proxy_cf = dataTableProxy('tbl_cf')
+proxy_ratios_valuation = dataTableProxy('tbl_ratios_valuation')
+proxy_ratios_financial = dataTableProxy('tbl_ratios_financial')
+proxy_ratios_profitability = dataTableProxy('tbl_ratios_profitability')
+proxy_ratios_growth = dataTableProxy('tbl_ratios_growth')
+proxy_ratios_cashflow = dataTableProxy('tbl_ratios_cashflow')
+proxy_ratios_financial_health = dataTableProxy('tbl_ratios_financial_health')
+proxy_ratios_efficiency = dataTableProxy('tbl_ratios_efficiency')
 
 observeEvent(input$clear1, {
-    proxy %>% selectRows(NULL)
+    proxy_is %>% selectRows(NULL)
+    proxy_bs %>% selectRows(NULL)
+    proxy_cf %>% selectRows(NULL)
+    proxy_ratios_valuation %>% selectRows(NULL)
+    proxy_ratios_financial %>% selectRows(NULL)
+    proxy_ratios_profitability %>% selectRows(NULL)
+    proxy_ratios_growth %>% selectRows(NULL)
+    proxy_ratios_cashflow %>% selectRows(NULL)
+    proxy_ratios_financial_health %>% selectRows(NULL)
+    proxy_ratios_efficiency %>% selectRows(NULL)
 })
+
+```
+
+### Debugging
+
+```{r adasda}
+
+lol <- reactive(
+    if(!is.null(input$tbl_is_rows_selected)){
+        row <- tbl_is_rows_selected
+    } else
+    if(!is.null(input$tbl_bs_rows_selected)){
+        row <- tbl_bs_rows_selected
+    } else
+    if(!is.null(input$tbl_cf_rows_selected)){
+        row <- tbl_cf_rows_selected
+    } else 
+    if(!is.null(input$tbl_ratios_valuation_rows_selected)){
+        row <- tbl_ratios_valuation_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_financial_rows_selected)){
+        row <- tbl_ratios_financial_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_profitability_rows_selected)){
+        row <- tbl_ratios_profitability_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_growth_rows_selected)){
+        row <- tbl_ratios_growth_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_cashflow_rows_selected)){
+        row <- tbl_ratios_cashflow_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_financial_health_rows_selected)){
+        row <- tbl_ratios_financial_health_rows_selected
+    } else
+    if(!is.null(input$tbl_ratios_efficiency_rows_selected)){
+        row <- tbl_ratios_efficiency_rows_selected
+    }
+)
+
+renderText(
+    lol()
+    # input$selectedtbl_rows_selected
+)
 
 ```
 
@@ -1399,9 +1575,9 @@ tbl_ratios_all <- eventReactive(input$clickMe_fins,{
 tbl_is <- eventReactive(input$clickMe_fins,{
  
     tbl_all() %>%
-    # tbl %>%
+    # test <- tbl %>% #debugging
         filter(type=="IS") %>% 
-        # select (quarter) %>%
+        # select (quarter) %>% #debugging
         select (input$reporting_per) %>%
         unnest() %>%
         spread(date,value) %>%
