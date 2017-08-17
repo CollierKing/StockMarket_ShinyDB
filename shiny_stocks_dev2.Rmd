@@ -1314,10 +1314,54 @@ finplot <- reactive({
     
     if(!is.null(input$tbl_is_rows_selected)){
         row <- input$tbl_is_rows_selected
-        
         ticker <- toupper(input$inText_fins)
         input <- tickerQuery(ticker,"Weekly")
         
+        cat <- tbl_is()[row,]$category
+        
+        # ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+        test2 <- tbl_is() %>% gather(date,val,-category)
+        test2 <- test2[test2$category==cat,]
+        
+        test2$date <- as.Date(test2$date)
+
+
+        input$cross_val <- NA
+        
+        for (k in 1:nrow(test2)){
+            for (i in 1:nrow(input)){
+                if(is.na(input$cross_val[i])){
+                    input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
+                  input$date[i+1]),test2$val[k],NA)
+        
+                #cleanup
+                if(i > 1){
+                    if(!is.na(input$cross_val[i]) &
+                   !is.na(input$cross_val[i-1])){
+                    input$cross_val[i-1] <- NA
+                   }
+                }
+                }
+            }
+        }
+        
+        
+        cross_val_dates <- input[!is.na(input$cross_val),]$date
+        
+        input_plot <- input[input$date>=cross_val_dates[1],]
+        
+        
+        p1 <- ggplot(input_plot, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+        
+        p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
+                                     y = 0, yend = cross_val), 
+               arrow = arrow(), 
+               colour = "#FF3EFF", 
+               size = 1.25)
+
+    p_test <- plot_grid(p1,p2,ncol=1,align='v',rel_heights = c(.6,.4))
+
+    p_test
         
         
         
@@ -1326,13 +1370,107 @@ finplot <- reactive({
         row <- input$tbl_bs_rows_selected
         
         
+        ticker <- toupper(input$inText_fins)
+        input <- tickerQuery(ticker,"Weekly")
         
+        cat <- tbl_bs()[row,]$category
+        
+        # ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+        test2 <- tbl_bs() %>% gather(date,val,-category)
+        test2 <- test2[test2$category==cat,]
+        
+        test2$date <- as.Date(test2$date)
+
+
+        input$cross_val <- NA
+        
+        for (k in 1:nrow(test2)){
+            for (i in 1:nrow(input)){
+                if(is.na(input$cross_val[i])){
+                    input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
+                  input$date[i+1]),test2$val[k],NA)
+        
+                #cleanup
+                if(i > 1){
+                    if(!is.na(input$cross_val[i]) &
+                   !is.na(input$cross_val[i-1])){
+                    input$cross_val[i-1] <- NA
+                   }
+                }
+                }
+            }
+        }
+        
+        
+        cross_val_dates <- input[!is.na(input$cross_val),]$date
+        
+        input_plot <- input[input$date>=cross_val_dates[1],]
+        
+        
+        p1 <- ggplot(input_plot, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+        
+        p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
+                                     y = 0, yend = cross_val), 
+               arrow = arrow(), 
+               colour = "#FF3EFF", 
+               size = 1.25)
+
+    p_test <- plot_grid(p1,p2,ncol=1,align='v',rel_heights = c(.6,.4))
+
+    p_test
         
     } else
     if(!is.null(input$tbl_cf_rows_selected)){
         row <- input$tbl_cf_rows_selected
         
+        ticker <- toupper(input$inText_fins)
+        input <- tickerQuery(ticker,"Weekly")
         
+        cat <- tbl_cf()[row,]$category
+        
+        # ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+        test2 <- tbl_cf() %>% gather(date,val,-category)
+        test2 <- test2[test2$category==cat,]
+        
+        test2$date <- as.Date(test2$date)
+
+
+        input$cross_val <- NA
+        
+        for (k in 1:nrow(test2)){
+            for (i in 1:nrow(input)){
+                if(is.na(input$cross_val[i])){
+                    input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
+                  input$date[i+1]),test2$val[k],NA)
+        
+                #cleanup
+                if(i > 1){
+                    if(!is.na(input$cross_val[i]) &
+                   !is.na(input$cross_val[i-1])){
+                    input$cross_val[i-1] <- NA
+                   }
+                }
+                }
+            }
+        }
+        
+        
+        cross_val_dates <- input[!is.na(input$cross_val),]$date
+        
+        input_plot <- input[input$date>=cross_val_dates[1],]
+        
+        
+        p1 <- ggplot(input_plot, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+        
+        p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
+                                     y = 0, yend = cross_val), 
+               arrow = arrow(), 
+               colour = "#FF3EFF", 
+               size = 1.25)
+
+    p_test <- plot_grid(p1,p2,ncol=1,align='v',rel_heights = c(.6,.4))
+
+    p_test
         
     } else 
     if(!is.null(input$tbl_ratios_valuation_rows_selected)){
@@ -1392,21 +1530,338 @@ finplot <- reactive({
     } else
     if(!is.null(input$tbl_ratios_financial_rows_selected)){
         row <- input$tbl_ratios_financial_rows_selected
+        
+        ticker <- toupper(input$inText_fins)
+        input <- tickerQuery(ticker,"Weekly")
+        
+        cat <- tbl_ratios_financial()[row,]$category
+        
+        # ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+        test2 <- tbl_ratios_financial() %>% gather(date,val,-category)
+        test2 <- test2[test2$category==cat,]
+        
+        test2$date <- as.Date(test2$date)
+
+
+        input$cross_val <- NA
+        
+        for (k in 1:nrow(test2)){
+            for (i in 1:nrow(input)){
+                if(is.na(input$cross_val[i])){
+                    input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
+                  input$date[i+1]),test2$val[k],NA)
+        
+                #cleanup
+                if(i > 1){
+                    if(!is.na(input$cross_val[i]) &
+                   !is.na(input$cross_val[i-1])){
+                    input$cross_val[i-1] <- NA
+                   }
+                }
+                }
+            }
+        }
+        
+        
+        cross_val_dates <- input[!is.na(input$cross_val),]$date
+        
+        input_plot <- input[input$date>=cross_val_dates[1],]
+        
+        
+        p1 <- ggplot(input_plot, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+        
+        p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
+                                     y = 0, yend = cross_val), 
+               arrow = arrow(), 
+               colour = "#FF3EFF", 
+               size = 1.25)
+
+    p_test <- plot_grid(p1,p2,ncol=1,align='v',rel_heights = c(.6,.4))
+
+    p_test
+        
+        
+        
     } else
     if(!is.null(input$tbl_ratios_profitability_rows_selected)){
         row <- input$tbl_ratios_profitability_rows_selected
+        
+        ticker <- toupper(input$inText_fins)
+        input <- tickerQuery(ticker,"Weekly")
+        
+        cat <- tbl_ratios_profitability()[row,]$category
+        
+        # ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+        test2 <- tbl_ratios_profitability() %>% gather(date,val,-category,-sub.section)
+        test2 <- test2[test2$category==cat,]
+        
+        test2$date <- as.Date(test2$date)
+
+
+        input$cross_val <- NA
+        
+        for (k in 1:nrow(test2)){
+            for (i in 1:nrow(input)){
+                if(is.na(input$cross_val[i])){
+                    input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
+                  input$date[i+1]),test2$val[k],NA)
+        
+                #cleanup
+                if(i > 1){
+                    if(!is.na(input$cross_val[i]) &
+                   !is.na(input$cross_val[i-1])){
+                    input$cross_val[i-1] <- NA
+                   }
+                }
+                }
+            }
+        }
+        
+        
+        cross_val_dates <- input[!is.na(input$cross_val),]$date
+        
+        input_plot <- input[input$date>=cross_val_dates[1],]
+        
+        
+        p1 <- ggplot(input_plot, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+        
+        p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
+                                     y = 0, yend = cross_val), 
+               arrow = arrow(), 
+               colour = "#FF3EFF", 
+               size = 1.25)
+
+    p_test <- plot_grid(p1,p2,ncol=1,align='v',rel_heights = c(.6,.4))
+
+    p_test
+        
+        
     } else
     if(!is.null(input$tbl_ratios_growth_rows_selected)){
         row <- input$tbl_ratios_growth_rows_selected
+        
+        
+        ticker <- toupper(input$inText_fins)
+        input <- tickerQuery(ticker,"Weekly")
+        
+        cat <- tbl_ratios_growth()[row,]$category
+        
+        # ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+        test2 <- tbl_ratios_growth() %>% gather(date,val,-category,-sub.section)
+        test2 <- test2[test2$category==cat,]
+        
+        test2$date <- as.Date(test2$date)
+
+
+        input$cross_val <- NA
+        
+        for (k in 1:nrow(test2)){
+            for (i in 1:nrow(input)){
+                if(is.na(input$cross_val[i])){
+                    input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
+                  input$date[i+1]),test2$val[k],NA)
+        
+                #cleanup
+                if(i > 1){
+                    if(!is.na(input$cross_val[i]) &
+                   !is.na(input$cross_val[i-1])){
+                    input$cross_val[i-1] <- NA
+                   }
+                }
+                }
+            }
+        }
+        
+        
+        cross_val_dates <- input[!is.na(input$cross_val),]$date
+        
+        input_plot <- input[input$date>=cross_val_dates[1],]
+        
+        
+        p1 <- ggplot(input_plot, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+        
+        p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
+                                     y = 0, yend = cross_val), 
+               arrow = arrow(), 
+               colour = "#FF3EFF", 
+               size = 1.25)
+
+    p_test <- plot_grid(p1,p2,ncol=1,align='v',rel_heights = c(.6,.4))
+
+    p_test
+        
+        
+        
+        
     } else
     if(!is.null(input$tbl_ratios_cashflow_rows_selected)){
         row <- input$tbl_ratios_cashflow_rows_selected
+        
+        
+        ticker <- toupper(input$inText_fins)
+        input <- tickerQuery(ticker,"Weekly")
+        
+        cat <- tbl_ratios_cashflow()[row,]$category
+        
+        # ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+        test2 <- tbl_ratios_cashflow() %>% gather(date,val,-category)
+        test2 <- test2[test2$category==cat,]
+        
+        test2$date <- as.Date(test2$date)
+
+
+        input$cross_val <- NA
+        
+        for (k in 1:nrow(test2)){
+            for (i in 1:nrow(input)){
+                if(is.na(input$cross_val[i])){
+                    input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
+                  input$date[i+1]),test2$val[k],NA)
+        
+                #cleanup
+                if(i > 1){
+                    if(!is.na(input$cross_val[i]) &
+                   !is.na(input$cross_val[i-1])){
+                    input$cross_val[i-1] <- NA
+                   }
+                }
+                }
+            }
+        }
+        
+        
+        cross_val_dates <- input[!is.na(input$cross_val),]$date
+        
+        input_plot <- input[input$date>=cross_val_dates[1],]
+        
+        
+        p1 <- ggplot(input_plot, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+        
+        p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
+                                     y = 0, yend = cross_val), 
+               arrow = arrow(), 
+               colour = "#FF3EFF", 
+               size = 1.25)
+
+    p_test <- plot_grid(p1,p2,ncol=1,align='v',rel_heights = c(.6,.4))
+
+    p_test
+        
+        
+        
+        
     } else
     if(!is.null(input$tbl_ratios_financial_health_rows_selected)){
         row <- input$tbl_ratios_financial_health_rows_selected
+        
+        
+        ticker <- toupper(input$inText_fins)
+        input <- tickerQuery(ticker,"Weekly")
+        
+        cat <- tbl_ratios_financial_health()[row,]$category
+        
+        # ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+        test2 <- tbl_ratios_financial_health() %>% gather(date,val,-category,-sub.section)
+        test2 <- test2[test2$category==cat,]
+        
+        test2$date <- as.Date(test2$date)
+
+
+        input$cross_val <- NA
+        
+        for (k in 1:nrow(test2)){
+            for (i in 1:nrow(input)){
+                if(is.na(input$cross_val[i])){
+                    input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
+                  input$date[i+1]),test2$val[k],NA)
+        
+                #cleanup
+                if(i > 1){
+                    if(!is.na(input$cross_val[i]) &
+                   !is.na(input$cross_val[i-1])){
+                    input$cross_val[i-1] <- NA
+                   }
+                }
+                }
+            }
+        }
+        
+        
+        cross_val_dates <- input[!is.na(input$cross_val),]$date
+        
+        input_plot <- input[input$date>=cross_val_dates[1],]
+        
+        
+        p1 <- ggplot(input_plot, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+        
+        p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
+                                     y = 0, yend = cross_val), 
+               arrow = arrow(), 
+               colour = "#FF3EFF", 
+               size = 1.25)
+
+    p_test <- plot_grid(p1,p2,ncol=1,align='v',rel_heights = c(.6,.4))
+
+    p_test
+        
+        
     } else
     if(!is.null(input$tbl_ratios_efficiency_rows_selected)){
         row <- input$tbl_ratios_efficiency_rows_selected
+        
+        
+        
+        ticker <- toupper(input$inText_fins)
+        input <- tickerQuery(ticker,"Weekly")
+        
+        cat <- tbl_ratios_efficiency()[row,]$category
+        
+        # ticker <- as.character(selectedData() %>% slice(row_selected) %>% select(Ticker))
+        test2 <- tbl_ratios_efficiency() %>% gather(date,val,-category)
+        test2 <- test2[test2$category==cat,]
+        
+        test2$date <- as.Date(test2$date)
+
+
+        input$cross_val <- NA
+        
+        for (k in 1:nrow(test2)){
+            for (i in 1:nrow(input)){
+                if(is.na(input$cross_val[i])){
+                    input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
+                  input$date[i+1]),test2$val[k],NA)
+        
+                #cleanup
+                if(i > 1){
+                    if(!is.na(input$cross_val[i]) &
+                   !is.na(input$cross_val[i-1])){
+                    input$cross_val[i-1] <- NA
+                   }
+                }
+                }
+            }
+        }
+        
+        
+        cross_val_dates <- input[!is.na(input$cross_val),]$date
+        
+        input_plot <- input[input$date>=cross_val_dates[1],]
+        
+        
+        p1 <- ggplot(input_plot, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
+        
+        p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
+                                     y = 0, yend = cross_val), 
+               arrow = arrow(), 
+               colour = "#FF3EFF", 
+               size = 1.25)
+
+    p_test <- plot_grid(p1,p2,ncol=1,align='v',rel_heights = c(.6,.4))
+
+    p_test
+        
+        
+        
     }
     
     
