@@ -39,10 +39,10 @@ g_file <- read.csv(text=g_file_txt,stringsAsFactors = FALSE)
 g_file$TradeDate <- as.Date(g_file$TradeDate)
 
 
-# options(shiny.error = function() {
-#   # stop("Waiting for user to load data..")
-#     stop("")
-# })
+options(shiny.error = function() {
+  # stop("Waiting for user to load data..")
+    stop("")
+})
 
 ## Define Functions - Ticker Query
 tickerQuery <- function(ticker,time_frame){
@@ -1243,8 +1243,8 @@ Inputs {.sidebar}
 textInput("inText_fins","Ticker Search:","")
 
 selectInput("reporting_per", label = "Choose Fin. Statement Type: ",
-             list(`Annual` = "Annual",
-                `Quarterly` = "Quarterly"), selected = "Quarterly")
+             list(`annual` = "annual",
+                `quarter` = "quarter"), selected = "quarter")
 
 actionButton("clickMe_fins", label = "Search")
 
@@ -1301,21 +1301,13 @@ Row {.tabset .tabset-fade}
 # finplot <- eventReactive(input$clickMe_fins,{
 finplot <- reactive({
     
-
-    
-
-    # event <- event_summ_tbl()[input$tbl3_rows_selected,]$event
-    # p1
-    
-    #WIP
-    #Edit -
-    #do this in separate plot and then grid arrange them, then dont need to worry about rescaling a second axis?
-    # if table row is selected, add line
-    
     if(!is.null(input$tbl_is_rows_selected)){
         row <- input$tbl_is_rows_selected
-        ticker <- toupper(input$inText_fins)
-        input <- tickerQuery(ticker,"Weekly")
+        
+        # ticker <- toupper(input$inText_fins)
+        # input <- tickerQuery(ticker,"Weekly")
+        ticker <- sel_ticker()
+        input <- tbl_quotes()
         
         cat <- tbl_is()[row,]$category
         
@@ -1355,7 +1347,7 @@ finplot <- reactive({
         
         p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
                                      y = 0, yend = cross_val), 
-               arrow = arrow(), 
+               #arrow = arrow(), 
                colour = "#FF3EFF", 
                size = 1.25)
 
@@ -1369,9 +1361,10 @@ finplot <- reactive({
     if(!is.null(input$tbl_bs_rows_selected)){
         row <- input$tbl_bs_rows_selected
         
-        
-        ticker <- toupper(input$inText_fins)
-        input <- tickerQuery(ticker,"Weekly")
+        # ticker <- toupper(input$inText_fins)
+        # input <- tickerQuery(ticker,"Weekly")
+        ticker <- sel_ticker()
+        input <- tbl_quotes()
         
         cat <- tbl_bs()[row,]$category
         
@@ -1411,7 +1404,7 @@ finplot <- reactive({
         
         p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
                                      y = 0, yend = cross_val), 
-               arrow = arrow(), 
+               #arrow = arrow(), 
                colour = "#FF3EFF", 
                size = 1.25)
 
@@ -1423,8 +1416,10 @@ finplot <- reactive({
     if(!is.null(input$tbl_cf_rows_selected)){
         row <- input$tbl_cf_rows_selected
         
-        ticker <- toupper(input$inText_fins)
-        input <- tickerQuery(ticker,"Weekly")
+        # ticker <- toupper(input$inText_fins)
+        # input <- tickerQuery(ticker,"Weekly")
+        ticker <- sel_ticker()
+        input <- tbl_quotes()
         
         cat <- tbl_cf()[row,]$category
         
@@ -1464,7 +1459,7 @@ finplot <- reactive({
         
         p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
                                      y = 0, yend = cross_val), 
-               arrow = arrow(), 
+               #arrow = arrow(), 
                colour = "#FF3EFF", 
                size = 1.25)
 
@@ -1476,8 +1471,10 @@ finplot <- reactive({
     if(!is.null(input$tbl_ratios_valuation_rows_selected)){
         row <- input$tbl_ratios_valuation_rows_selected
         
-        ticker <- toupper(input$inText_fins)
-        input <- tickerQuery(ticker,"Weekly")
+        # ticker <- toupper(input$inText_fins)
+        # input <- tickerQuery(ticker,"Weekly")
+        ticker <- sel_ticker()
+        input <- tbl_quotes()
         
         cat <- tbl_ratios_valuation()[row,]$category
         
@@ -1517,7 +1514,7 @@ finplot <- reactive({
         
         p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
                                      y = 0, yend = cross_val), 
-               arrow = arrow(), 
+               #arrow = arrow(), 
                colour = "#FF3EFF", 
                size = 1.25)
 
@@ -1531,8 +1528,10 @@ finplot <- reactive({
     if(!is.null(input$tbl_ratios_financial_rows_selected)){
         row <- input$tbl_ratios_financial_rows_selected
         
-        ticker <- toupper(input$inText_fins)
-        input <- tickerQuery(ticker,"Weekly")
+        # ticker <- toupper(input$inText_fins)
+        # input <- tickerQuery(ticker,"Weekly")
+        ticker <- sel_ticker()
+        input <- tbl_quotes()
         
         cat <- tbl_ratios_financial()[row,]$category
         
@@ -1572,7 +1571,7 @@ finplot <- reactive({
         
         p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
                                      y = 0, yend = cross_val), 
-               arrow = arrow(), 
+               #arrow = arrow(), 
                colour = "#FF3EFF", 
                size = 1.25)
 
@@ -1586,8 +1585,10 @@ finplot <- reactive({
     if(!is.null(input$tbl_ratios_profitability_rows_selected)){
         row <- input$tbl_ratios_profitability_rows_selected
         
-        ticker <- toupper(input$inText_fins)
-        input <- tickerQuery(ticker,"Weekly")
+        # ticker <- toupper(input$inText_fins)
+        # input <- tickerQuery(ticker,"Weekly")
+        ticker <- sel_ticker()
+        input <- tbl_quotes()
         
         cat <- tbl_ratios_profitability()[row,]$category
         
@@ -1627,7 +1628,7 @@ finplot <- reactive({
         
         p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
                                      y = 0, yend = cross_val), 
-               arrow = arrow(), 
+               #arrow = arrow(), 
                colour = "#FF3EFF", 
                size = 1.25)
 
@@ -1640,9 +1641,10 @@ finplot <- reactive({
     if(!is.null(input$tbl_ratios_growth_rows_selected)){
         row <- input$tbl_ratios_growth_rows_selected
         
-        
-        ticker <- toupper(input$inText_fins)
-        input <- tickerQuery(ticker,"Weekly")
+        # ticker <- toupper(input$inText_fins)
+        # input <- tickerQuery(ticker,"Weekly")
+        ticker <- sel_ticker()
+        input <- tbl_quotes()
         
         cat <- tbl_ratios_growth()[row,]$category
         
@@ -1682,7 +1684,7 @@ finplot <- reactive({
         
         p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
                                      y = 0, yend = cross_val), 
-               arrow = arrow(), 
+               #arrow = arrow(), 
                colour = "#FF3EFF", 
                size = 1.25)
 
@@ -1697,9 +1699,10 @@ finplot <- reactive({
     if(!is.null(input$tbl_ratios_cashflow_rows_selected)){
         row <- input$tbl_ratios_cashflow_rows_selected
         
-        
-        ticker <- toupper(input$inText_fins)
-        input <- tickerQuery(ticker,"Weekly")
+        # ticker <- toupper(input$inText_fins)
+        # input <- tickerQuery(ticker,"Weekly")
+        ticker <- sel_ticker()
+        input <- tbl_quotes()
         
         cat <- tbl_ratios_cashflow()[row,]$category
         
@@ -1739,7 +1742,7 @@ finplot <- reactive({
         
         p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
                                      y = 0, yend = cross_val), 
-               arrow = arrow(), 
+               #arrow = arrow(), 
                colour = "#FF3EFF", 
                size = 1.25)
 
@@ -1754,9 +1757,10 @@ finplot <- reactive({
     if(!is.null(input$tbl_ratios_financial_health_rows_selected)){
         row <- input$tbl_ratios_financial_health_rows_selected
         
-        
-        ticker <- toupper(input$inText_fins)
-        input <- tickerQuery(ticker,"Weekly")
+        # ticker <- toupper(input$inText_fins)
+        # input <- tickerQuery(ticker,"Weekly")
+        ticker <- sel_ticker()
+        input <- tbl_quotes()
         
         cat <- tbl_ratios_financial_health()[row,]$category
         
@@ -1796,7 +1800,7 @@ finplot <- reactive({
         
         p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
                                      y = 0, yend = cross_val), 
-               arrow = arrow(), 
+               #arrow = arrow(), 
                colour = "#FF3EFF", 
                size = 1.25)
 
@@ -1809,10 +1813,10 @@ finplot <- reactive({
     if(!is.null(input$tbl_ratios_efficiency_rows_selected)){
         row <- input$tbl_ratios_efficiency_rows_selected
         
-        
-        
-        ticker <- toupper(input$inText_fins)
-        input <- tickerQuery(ticker,"Weekly")
+        # ticker <- toupper(input$inText_fins)
+        # input <- tickerQuery(ticker,"Weekly")
+        ticker <- sel_ticker()
+        input <- tbl_quotes()
         
         cat <- tbl_ratios_efficiency()[row,]$category
         
@@ -1852,7 +1856,7 @@ finplot <- reactive({
         
         p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=2) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(min(input_plot$cross_val),max(input_plot$cross_val))) + ggtitle(paste0(test2$category)) + geom_segment(data = input_plot, aes(x = date, xend = date, 
                                      y = 0, yend = cross_val), 
-               arrow = arrow(), 
+               #arrow = arrow(), 
                colour = "#FF3EFF", 
                size = 1.25)
 
@@ -1864,66 +1868,6 @@ finplot <- reactive({
         
     }
     
-    
-    # test2 <- test %>% gather(date,val,-category) #debugging
-    # test2 <- selectedtbl() %>% gather(date,val,-category)
-    
-    # test2 <- test2[row,]$category
-    
-    # cat <- selected_tbl()[input$selected_tbl_rows_selected,]$category
-    # cat <- test2[row,]$category #debugging
-    
-    # test2 <- test2 %>% filter(
-        # category == cat
-    # )
-    # test2 <- test2[test2$category=="Revenue",] #debugging
-    
-
-    # test2$date <- as.Date(test2$date)
-    
-
-# input$cross_val <- NA
-    
-# for (k in 1:nrow(test2)){
-#     for (i in 1:nrow(input)){
-#         if(is.na(input$cross_val[i])){
-#             input$cross_val[i] <- ifelse(between(test2$date[k],input$date[i],
-#           input$date[i+1]),test2$val[k],NA)
-#          
-#         #cleanup
-#         if(i > 1){
-#             if(!is.na(input$cross_val[i]) &
-#            !is.na(input$cross_val[i-1])){
-#             input$cross_val[i-1] <- NA
-#            }
-#         }
-#         }
-#     }
-# }
-    
-
-# cross_val_dates <- input[!is.na(input$cross_val),]$date
-
-# input_plot <- input[input$date>=cross_val_dates[1],]
-
-
-# p1 <- ggplot(input, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
-# 
-# p2 <- ggplot() + geom_point(data=input,aes(x=date,y=cross_val,color="red"),size=5) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(0,max(input$cross_val))) + ggtitle(paste0(test2$category))
-
-
-
-# p1 <- ggplot(input_plot, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste0(ticker,": Weekly"))
-# 
-# p2 <- ggplot() + geom_point(data=input_plot,aes(x=date,y=cross_val,color="red"),size=5) + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input_plot$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + scale_y_continuous(limits=c(0,max(input_plot$cross_val))) + ggtitle(paste0(test2$category))
-
-
-
-# p_test <- plot_grid(p1,p2,ncol=1,align='v',rel_heights = c(.75,.25))
-
-# p_test
-# input_plot
-# test2
 
 })
 
@@ -1931,13 +1875,6 @@ renderPlot(
     finplot()
 )
 
-# renderDataTable(
-#     finplot()
-# )
-
-# renderText(
-#     finplot()
-# )
 
 ```
   
@@ -1949,54 +1886,54 @@ renderPlot(
 
 # textOutput("row_txt")
 
-dataTableOutput("selectedtbl")
-
-output$selectedtbl <- renderDataTable({
-    selectedtbl()
-},
-options = list(
-    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
-)
-
-
-selectedtbl <- reactive({
-
-    if(!is.null(input$tbl_is_rows_selected)){
-        tbl_is()
-    } else
-    if(!is.null(input$tbl_bs_rows_selected)){
-        tbl_bs()
-    } else
-    if(!is.null(input$tbl_cf_rows_selected)){
-        tbl_cf()
-    } else 
-    if(!is.null(input$tbl_ratios_valuation_rows_selected)){
-        tbl_ratios_valuation()
-    } else
-    if(!is.null(input$tbl_ratios_financial_rows_selected)){
-        tbl_ratios_financial()
-    } else
-    if(!is.null(input$tbl_ratios_profitability_rows_selected)){
-        tbl_ratios_profitability()
-    } else
-    if(!is.null(input$tbl_ratios_growth_rows_selected)){
-        tbl_ratios_growth()
-    } else
-    if(!is.null(input$tbl_ratios_cashflow_rows_selected)){
-        tbl_ratios_cashflow()
-    } else
-    if(!is.null(input$tbl_ratios_financial_health_rows_selected)){
-        tbl_ratios_financial_health()
-    } else
-    if(!is.null(input$tbl_ratios_efficiency_rows_selected)){
-        tbl_ratios_efficiency()
-    }
-}    
-)
-
-renderDataTable(
-    selected_tbl()
-)
+# dataTableOutput("selectedtbl")
+# 
+# output$selectedtbl <- renderDataTable({
+#     selectedtbl()
+# },
+# options = list(
+#     scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+# )
+# 
+# 
+# selectedtbl <- reactive({
+# 
+#     if(!is.null(input$tbl_is_rows_selected)){
+#         tbl_is()
+#     } else
+#     if(!is.null(input$tbl_bs_rows_selected)){
+#         tbl_bs()
+#     } else
+#     if(!is.null(input$tbl_cf_rows_selected)){
+#         tbl_cf()
+#     } else 
+#     if(!is.null(input$tbl_ratios_valuation_rows_selected)){
+#         tbl_ratios_valuation()
+#     } else
+#     if(!is.null(input$tbl_ratios_financial_rows_selected)){
+#         tbl_ratios_financial()
+#     } else
+#     if(!is.null(input$tbl_ratios_profitability_rows_selected)){
+#         tbl_ratios_profitability()
+#     } else
+#     if(!is.null(input$tbl_ratios_growth_rows_selected)){
+#         tbl_ratios_growth()
+#     } else
+#     if(!is.null(input$tbl_ratios_cashflow_rows_selected)){
+#         tbl_ratios_cashflow()
+#     } else
+#     if(!is.null(input$tbl_ratios_financial_health_rows_selected)){
+#         tbl_ratios_financial_health()
+#     } else
+#     if(!is.null(input$tbl_ratios_efficiency_rows_selected)){
+#         tbl_ratios_efficiency()
+#     }
+# }    
+# )
+# 
+# renderDataTable(
+#     selected_tbl()
+# )
 
 proxy_is = dataTableProxy('tbl_is')
 proxy_bs = dataTableProxy('tbl_bs')
@@ -2028,49 +1965,68 @@ observeEvent(input$clear1, {
 
 ```{r adasda}
 
-lol <- reactive(
-    if(!is.null(input$tbl_is_rows_selected)){
-        row <- input$tbl_is_rows_selected
-    } else
-    if(!is.null(input$tbl_bs_rows_selected)){
-        row <- input$tbl_bs_rows_selected
-    } else
-    if(!is.null(input$tbl_cf_rows_selected)){
-        row <- input$tbl_cf_rows_selected
-    } else 
-    if(!is.null(input$tbl_ratios_valuation_rows_selected)){
-        row <- input$tbl_ratios_valuation_rows_selected
-    } else
-    if(!is.null(input$tbl_ratios_financial_rows_selected)){
-        row <- input$tbl_ratios_financial_rows_selected
-    } else
-    if(!is.null(input$tbl_ratios_profitability_rows_selected)){
-        row <- input$tbl_ratios_profitability_rows_selected
-    } else
-    if(!is.null(input$tbl_ratios_growth_rows_selected)){
-        row <- input$tbl_ratios_growth_rows_selected
-    } else
-    if(!is.null(input$tbl_ratios_cashflow_rows_selected)){
-        row <- input$tbl_ratios_cashflow_rows_selected
-    } else
-    if(!is.null(input$tbl_ratios_financial_health_rows_selected)){
-        row <- input$tbl_ratios_financial_health_rows_selected
-    } else
-    if(!is.null(input$tbl_ratios_efficiency_rows_selected)){
-        row <- input$tbl_ratios_efficiency_rows_selected
-    }
-    # row
-)
-
-renderText(
-    lol()
-    # input$selectedtbl_rows_selected
-)
+# lol <- reactive(
+#     if(!is.null(input$tbl_is_rows_selected)){
+#         row <- input$tbl_is_rows_selected
+#     } else
+#     if(!is.null(input$tbl_bs_rows_selected)){
+#         row <- input$tbl_bs_rows_selected
+#     } else
+#     if(!is.null(input$tbl_cf_rows_selected)){
+#         row <- input$tbl_cf_rows_selected
+#     } else 
+#     if(!is.null(input$tbl_ratios_valuation_rows_selected)){
+#         row <- input$tbl_ratios_valuation_rows_selected
+#     } else
+#     if(!is.null(input$tbl_ratios_financial_rows_selected)){
+#         row <- input$tbl_ratios_financial_rows_selected
+#     } else
+#     if(!is.null(input$tbl_ratios_profitability_rows_selected)){
+#         row <- input$tbl_ratios_profitability_rows_selected
+#     } else
+#     if(!is.null(input$tbl_ratios_growth_rows_selected)){
+#         row <- input$tbl_ratios_growth_rows_selected
+#     } else
+#     if(!is.null(input$tbl_ratios_cashflow_rows_selected)){
+#         row <- input$tbl_ratios_cashflow_rows_selected
+#     } else
+#     if(!is.null(input$tbl_ratios_financial_health_rows_selected)){
+#         row <- input$tbl_ratios_financial_health_rows_selected
+#     } else
+#     if(!is.null(input$tbl_ratios_efficiency_rows_selected)){
+#         row <- input$tbl_ratios_efficiency_rows_selected
+#     }
+#     # row
+# )
+# 
+# renderText(
+#     lol()
+#     # input$selectedtbl_rows_selected
+# )
 
 ```
 
 Row {.tabset .tabset-fade}
 -------------------------------------
+
+```{r fin-quotes-all}
+
+tbl_quotes <- eventReactive(input$clickMe_fins,{
+
+    ticker <- toupper(input$inText_fins)
+    input <- tickerQuery(ticker,"Weekly")
+    input
+
+})
+
+sel_ticker <- eventReactive(input$clickMe_fins,{
+    
+    ticker <- toupper(input$inText_fins)
+    ticker
+    
+})
+
+```
   
 ```{r fin-all}
 
@@ -2102,7 +2058,7 @@ tbl_is <- eventReactive(input$clickMe_fins,{
     # test <- tbl %>% #debugging
         filter(type=="IS") %>% 
         # select (quarter) %>% #debugging
-        select (input$reporting_per) %>%
+        select_(input$reporting_per) %>%
         unnest() %>%
         spread(date,value) %>%
         select (-group)
@@ -2134,7 +2090,7 @@ tbl_bs <- eventReactive(input$clickMe_fins,{
     # aapl_fins %>%
         filter(type=="BS") %>% 
         # select (quarter) %>%
-        select (input$reporting_per) %>%
+        select_(input$reporting_per) %>%
         unnest() %>%
         spread(date,value) %>%
         select (-group)
@@ -2164,7 +2120,7 @@ tbl_cf <- eventReactive(input$clickMe_fins,{
     # aapl_fins %>%
         filter(type=="BS") %>% 
         # select (quarter) %>%
-        select (input$reporting_per) %>%
+        select_(input$reporting_per) %>%
         unnest() %>%
         spread(date,value) %>%
         select (-group)
