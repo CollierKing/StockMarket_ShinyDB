@@ -803,19 +803,17 @@ selectInput("time_frame2", label = "Select Timeframe: ",
 actionButton("clickMe4", label = "Search")
 ```
 
-#### Current RSI Quantile
+#### Current RSI Percentile
 
-```{r-RSI quantile gauge}
+```{r-RSI percentile gauge}
 
 renderGauge({
-    
     
     col <- event_summ_all()[,c("RSI_q")]
     rsi_q <- round(col[length(col)],2)
     
-    
-  gauge(rsi_q, min = 0, max = 1, symbol = '%', gaugeSectors(
-  success = c(.8, 1), warning = c(.4, .79), danger = c(0, .39)
+  gauge(rsi_q, min = 0, max = 1, gaugeSectors(
+  success = c(.6, 1), warning = c(.4, .59), danger = c(0, .39)
   
 ))
     
@@ -883,43 +881,22 @@ event_chart <- reactive({
     event <- event_summ_tbl()[input$tbl3_rows_selected,]$event
     
     if(substr(event,nchar(event)-1,nchar(event))=="dn"){
-          # subset for rows with under condition
-         ###############
-        comp = substr(event,1,nchar(event)-3)
-        comp_tbl = event_summ_all() %>% filter_(paste(comp, "== 'under'"))
-        # comp_tbl = input2 %>% filter_(paste(comp, "== 'under'")) #for debugging
-        
-        comp_tbl$RSI_q_bins <- as.character(comp_tbl$RSI_q_bins)
-        comp_tbl$RSI_q_bins <- ifelse(is.na(comp_tbl$RSI_q_bins),"NULL",comp_tbl$RSI_q_bins)
-        
+    
         #####################
-        # create historical event_summary statistics from subset
-        #####################
-        comp_tbl %>% group_by_(event) %>%
-        summarise(min_price = min(Close),
-                  start_price = first(Close),
-                  return = round((min_price-start_price)/start_price,4),
-                  min_day = sum(which(Close == min_price)),
-                  tot_days = n(),
-                  rsi_q = first(RSI_q_bins),
-                  date = first(date)) %>% 
-            filter (return !=0) -> event_summ_tbl
-        # filter out erroneous crosses (where opposite cross happened)
-        event_summ_tbl[[event]] <- as.numeric(row.names(event_summ_tbl))
-        event_summ_tbl[[event]] <- as.factor(event_summ_tbl[[event]])
-        
+        #calculate mean returns and days
+        event_summ_tbl <- event_tbl_sub()
         #compute mean & standard deviations (return)
         return_mean <- mean(event_summ_tbl$return)
         return_sd <- sd(event_summ_tbl$return)
         #compute mean & standard deviations (days)
         day_mean <- mean(event_summ_tbl$min_day)
         day_sd <- sd(event_summ_tbl$min_day)
-        
-        
+    
         #####################
         # create current RSI distribution's historical event_summary statistics from subset
         #####################
         rsi_bins <- as.character(event_summ_all()[,c("RSI_q_bins")])
+        
         # rsi_bins <- as.character(input2$RSI_q_bins)
         rsi_q_current <- tail(rsi_bins,1)
             
@@ -934,70 +911,70 @@ event_chart <- reactive({
         #compute mean & standard deviations (days)
         day_mean_current_rsi <- mean(event_summ_tbl_current_q$min_day)
         day_sd_current_rsi <- sd(event_summ_tbl_current_q$min_day)
-        
+        #####################
         g1 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = return,fill=rsi_q)) +
           geom_bar(stat = "identity",alpha = 0.7) + ggtitle(paste0("Min_Return: ",event)) +
             coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +  
             scale_fill_manual(values = c("[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4","NULL"="black")) + xlab("") +ylab("") + theme(legend.position="none")
             
-        
         g2 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = min_day, fill=rsi_q)) +
             geom_bar(stat = "identity",alpha = 0.7) + ggtitle(paste0("Min_Day: ",event)) +
          coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) +    
             scale_fill_manual(values = c("[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4","NULL"="black")) + xlab("") +ylab("") + theme(legend.position="none")
         
-        #
+        # plot aggregate details
+        g1 <- g1 + geom_hline(yintercept=return_mean,color='purple',size=1)
+        g2 <- g2 + geom_hline(yintercept=day_mean,color='purple',size=1)
+        
         # #plot current rsi details 
-        g1 <- g1 + annotate("text", label = paste0("RSI_q:",rsi_q_current), y = .9*min(event_summ_tbl$return),
-                      x = nrow(event_summ_tbl), size = 4, colour = "black")
-        # 
-        g1 <- g1 + annotate("text", label = paste0("Max_Return: ",return_mean_current_rsi), y = .9*min(event_summ_tbl$return),
-                      x = nrow(event_summ_tbl)*.95, size = 4, colour = "black")
-        # 
-        g2 <- g2 + annotate("text", label = paste0("RSI_q: ",rsi_q_current), y = .9*max(event_summ_tbl$min_day),
-                      x = nrow(event_summ_tbl), size = 4, colour = "black")
-        # 
-        g2 <- g2 + annotate("text", label = paste0("Max_Day:",day_mean_current_rsi), y = .9*max(event_summ_tbl$min_day),
-                      x = nrow(event_summ_tbl)*.95, size = 4, colour = "black")
+        if (rsi_q_current == "NULL"){
+                        
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='grey',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='grey',size=1)
             
-
+        } else if (rsi_q_current=="[0,0.2)"){
+            
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='tomato1',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='tomato1',size=1)
+            
+        } else if (rsi_q_current=="[0.2,0.4)"){
+            
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='orange',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='orange',size=1)
+            
+        } else if (rsi_q_current=="[0.4,0.6)"){
+            
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='gold2',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='gold2',size=1)
+            
+        } else if (rsi_q_current=="[0.6,0.8)"){
+            
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='lightgreen',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='lightgreen',size=1)
+            
+        } else if (rsi_q_current=="[0.8,1]"){
+            
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='springgreen4',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='springgreen4',size=1)
+        }
+        
+        
+        #####################
+  #####################################################
     } else {
-        # subset for rows with over condition
         #####################
-        comp = substr(event,1,nchar(event)-3)
-        comp_tbl = event_summ_all() %>% filter_(paste(comp, "== 'over'"))
-        # comp_tbl = input2 %>% filter_(paste(comp, "== 'over'")) #for debugging
-        
-        comp_tbl$RSI_q_bins <- as.character(comp_tbl$RSI_q_bins)
-        comp_tbl$RSI_q_bins <- ifelse(is.na(comp_tbl$RSI_q_bins),"NULL",comp_tbl$RSI_q_bins)
-        
-        # create historical event_summary statistics from subset
-        #####################
-        comp_tbl %>% group_by_(event) %>%
-        summarise(max_price = max(Close),
-                  start_price = first(Close),
-                  return = round((max_price-start_price)/start_price,4),
-                  max_day = sum(which(Close == max_price)),
-                  tot_days = n(),
-                  rsi_q = first(RSI_q_bins),
-                  date = first(date))  %>% 
-            filter (return !=0) -> event_summ_tbl
-            # filter out erroneous crosses (where opposite cross happened)
-        event_summ_tbl[[event]] <- as.numeric(row.names(event_summ_tbl))
-        event_summ_tbl[[event]] <- as.factor(event_summ_tbl[[event]])
-        
+        #calculate mean returns and days
+        event_summ_tbl <- event_tbl_sub()
         #compute mean & standard deviations (return)
         return_mean <- mean(event_summ_tbl$return)
         return_sd <- sd(event_summ_tbl$return)
         #compute mean & standard deviations (days)
         day_mean <- mean(event_summ_tbl$max_day)
         day_sd <- sd(event_summ_tbl$max_day)
-        
         #####################
         # create current RSI distribution's historical event_summary statistics from subset
         #####################
         rsi_bins <- as.character(event_summ_all()[,c("RSI_q_bins")])
-        
         # rsi_bins <- as.character(input2$RSI_q_bins)
         rsi_q_current <- tail(rsi_bins,1)
             
@@ -1005,137 +982,153 @@ event_chart <- reactive({
             filter(
                 rsi_q == rsi_q_current
             ) -> event_summ_tbl_current_q
-            
         #compute mean & standard deviations (return)
         return_mean_current_rsi <- mean(event_summ_tbl_current_q$return)
         return_sd_current_rsi <- sd(event_summ_tbl_current_q$return)
         #compute mean & standard deviations (days)
         day_mean_current_rsi <- mean(event_summ_tbl_current_q$max_day)
         day_sd_current_rsi <- sd(event_summ_tbl_current_q$max_day)
-        
-        
+        #####################
         g1 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = return,fill=rsi_q)) +
           geom_bar(stat = "identity",alpha = 0.7) + ggtitle(paste0("Max_Return: ",event)) + coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) + scale_fill_manual(values = c("[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4")) + xlab("") +ylab("") + theme(legend.position="none")
 
         g2 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = max_day, fill=rsi_q)) +
             geom_bar(stat = "identity",alpha = 0.7) + ggtitle(paste0("Max_Day: ",event)) + coord_flip() + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) + scale_fill_manual(values = c("[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4")) + xlab("") +ylab("") + theme(legend.position="none")
         
+        #####################
         
-        #
+        # plot aggregate details
+        g1 <- g1 + geom_hline(yintercept=return_mean,color='purple',size=1)
+        g2 <- g2 + geom_hline(yintercept=day_mean,color='purple',size=1)
+        
+        
         # #plot current rsi details 
-        g1 <- g1 + annotate("text", label = paste0("RSI_q:",rsi_q_current), y = .9*min(event_summ_tbl$return),
-                      x = nrow(event_summ_tbl), size = 4, colour = "black")
-        # 
-        g1 <- g1 + annotate("text", label = paste0("Max_Return: ",return_mean_current_rsi), y = .9*min(event_summ_tbl$return),
-                      x = nrow(event_summ_tbl)*.95, size = 4, colour = "black")
-        # 
-        g2 <- g2 + annotate("text", label = paste0("RSI_q: ",rsi_q_current), y = .9*max(event_summ_tbl$max_day),
-                      x = nrow(event_summ_tbl), size = 4, colour = "black")
-        # 
-        g2 <- g2 + annotate("text", label = paste0("Max_Day:",day_mean_current_rsi), y = .9*max(event_summ_tbl$max_day),
-                      x = nrow(event_summ_tbl)*.95, size = 4, colour = "black")
+        if (rsi_q_current == "NULL"){
+                        
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='grey',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='grey',size=1)
+            
+        } else if (rsi_q_current=="[0,0.2)"){
+            
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='tomato1',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='tomato1',size=1)
+            
+        } else if (rsi_q_current=="[0.2,0.4)"){
+            
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='orange',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='orange',size=1)
+            
+        } else if (rsi_q_current=="[0.4,0.6)"){
+            
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='gold2',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='gold2',size=1)
+            
+        } else if (rsi_q_current=="[0.6,0.8)"){
+            
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='lightgreen',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='lightgreen',size=1)
+            
+        } else if (rsi_q_current=="[0.8,1]"){
+            
+            g1 <- g1 + geom_hline(yintercept=return_mean_current_rsi,color='springgreen4',size=1)
+            g2 <- g2 + geom_hline(yintercept=day_mean_current_rsi,color='springgreen4',size=1)
+        }
         
+        #####################
     }
+        ############################
+        input2 <- event_summ_all()
     
+        p1 <- ggplot(input2, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input2$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste(toupper(input$inText4),": ",input$time_frame2," - ",event))
     
-    
-    
-    #Add candlestick plot
-    
-    input2 <- event_summ_all()
-    
-      p1 <- ggplot(input2, aes(x=date, ymin=Low, ymax=High, lower=pmin(Open,Close), upper=pmax(Open,Close), fill=pos_neg, group=1, middle=pmin(Open,Close))) + geom_boxplot(stat='identity') + xlab('') + ylab('') + theme(legend.position='none',axis.title.x = element_blank()) + scale_x_bd(business.dates=input2$date, max.major.breaks=10, labels=date_format("%b '%y"))  + ylab("") + xlab("") + theme(axis.title.x = element_blank()) + background_grid(major = "xy",minor = "none") + ggtitle(paste(toupper(input$inText4),": ",input$time_frame2," - ",event))
-    
-    ## ADD TECHNICAL INDICATORS
-    if (nrow(input2[!is.na(input2$ma50),]) > 0){
-        p1 <- p1 + geom_line(aes(x=date,y=ma50),colour="green")
-    } 
-    if (nrow(input2[!is.na(input2$ma21),]) > 0){
-        p1 <- p1 + geom_line(aes(x=date,y=ma21),color="red")
-    }
-    if (nrow(input2[!is.na(input2$ma9),]) > 0){
-        p1 <- p1 + geom_line(aes(x=date,y=ma9),colour="blue")
-    }
-    # if (nrow(input2[!is.na(input2$up),]) > 0){
-    #     p1 <- p1 + geom_line(aes(x=date,y=up),color="purple") +
-    #         geom_line(aes(x=date,y=dn),color="purple")
-    # }
-    # 
-      
-    # Add current price to chart
-    last_price <- tail(input2$Close,1)
-    last_date <- tail(input2$date,1)
-    
-    p1 <- p1 +  annotate("text", label = paste0("last_price: ",last_price), x = last_date, y = last_price*1.1, size = 4, colour = "red")
-
-    matches <- which(input2$date %in% event_summ_tbl$date)
-    
-    #need to make matches a 2-column DF with the index in column 1 and quantile range in column 2
-    rsi_quantiles <- input2[matches,]
-    # rsi_quantiles$RSI_q_bins
-    
-    # "tomato1","orange", "gold2", "lightgreen","springgreen4","grey"
-    
-        # if(length(matches)>0){
-        if (nrow(rsi_quantiles)>0){
-            for (i in 1:nrow(rsi_quantiles)) {
-                if (is.na(rsi_quantiles$RSI_q_bins[i])){
-                    
-                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
-                                "],color='grey',,size=1)", sep="")
-                    p1 <- p1 + eval(parse(text=loop_input))     
-                    
-                } else if (rsi_quantiles$RSI_q_bins[i]=="[0,0.2)"){
-                    
-                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
-                                "],color='tomato1',,size=1)", sep="")
-                    p1 <- p1 + eval(parse(text=loop_input)) 
-                
-                } else if (rsi_quantiles$RSI_q_bins[i]=="[0.2,0.4)"){
-                    
-                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
-                                "],color='orange',,size=1)", sep="")
-                    p1 <- p1 + eval(parse(text=loop_input))      
-                    
-                } else if (rsi_quantiles$RSI_q_bins[i]=="[0.4,0.6)"){
-                    
-                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
-                                "],color='gold2',,size=1)", sep="")
-                    p1 <- p1 + eval(parse(text=loop_input))      
-                    
-                } else if (rsi_quantiles$RSI_q_bins[i]=="[0.6,0.8)"){
-                    
-                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
-                                "],color='lightgreen',,size=1)", sep="")
-                    p1 <- p1 + eval(parse(text=loop_input))      
-                    
-                } else if (rsi_quantiles$RSI_q_bins[i]=="[0.8,1]"){
-                    
-                    loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
-                                "],color='springgreen4',,size=1)", sep="")
-                    p1 <- p1 + eval(parse(text=loop_input))      
-                }
+        ## ADD TECHNICAL INDICATORS
+        if (nrow(input2[!is.na(input2$ma50),]) > 0){
+            p1 <- p1 + geom_line(aes(x=date,y=ma50),colour="green")
+        } 
+        if (nrow(input2[!is.na(input2$ma21),]) > 0){
+            p1 <- p1 + geom_line(aes(x=date,y=ma21),color="red")
         }
+        if (nrow(input2[!is.na(input2$ma9),]) > 0){
+            p1 <- p1 + geom_line(aes(x=date,y=ma9),colour="blue")
         }
-      
-    #WIP 
+        # if (nrow(input2[!is.na(input2$up),]) > 0){
+        #     p1 <- p1 + geom_line(aes(x=date,y=up),color="purple") +
+        #         geom_line(aes(x=date,y=dn),color="purple")
+        # }
+        # 
+          
+        # Add current price to chart
+        last_price <- tail(input2$Close,1)
+        last_date <- tail(input2$date,1)
     
-p2 <- ggplot() +
-    geom_line(data=input2,aes(x=date,y=macd,color="red")) +
-    geom_line(data=input2,aes(x=date,y=signal,color="blue")) +
-    scale_x_bd(business.dates=input2$date, max.major.breaks=10, labels=date_format("%b '%y")) + guides(color=FALSE) + xlab("MACD") + ylab("") + theme(axis.title.x = element_blank(),axis.text.x = element_blank()) + background_grid(major = "xy",minor = "none")
-      
-# p_test <- grid.arrange(p1,p2,heights=c(3/4,1/4))
-p_test <- plot_grid(p1,p2,ncol=1,align='v', rel_heights = c(.75,.25)) 
-
-    grid.arrange(g1,g2,p_test,widths=c(1/6,1/6,2/3))
+        p1 <- p1 +  annotate("text", label = paste0("last_price: ",last_price), x = last_date, y = last_price*1.1, size = 4, colour = "black")
+    
+        matches <- which(input2$date %in% event_summ_tbl$date)
+        
+        #need to make matches a 2-column DF with the index in column 1 and quantile range in column 2
+        rsi_quantiles <- input2[matches,]
+            # if(length(matches)>0){
+            if (nrow(rsi_quantiles)>0){
+                for (i in 1:nrow(rsi_quantiles)) {
+                    if (is.na(rsi_quantiles$RSI_q_bins[i])){
+                        
+                        loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                    "],color='grey',,size=1)", sep="")
+                        p1 <- p1 + eval(parse(text=loop_input))     
+                        
+                    } else if (rsi_quantiles$RSI_q_bins[i]=="[0,0.2)"){
+                        
+                        loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                    "],color='tomato1',,size=1)", sep="")
+                        p1 <- p1 + eval(parse(text=loop_input)) 
+                    
+                    } else if (rsi_quantiles$RSI_q_bins[i]=="[0.2,0.4)"){
+                        
+                        loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                    "],color='orange',,size=1)", sep="")
+                        p1 <- p1 + eval(parse(text=loop_input))      
+                        
+                    } else if (rsi_quantiles$RSI_q_bins[i]=="[0.4,0.6)"){
+                        
+                        loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                    "],color='gold2',,size=1)", sep="")
+                        p1 <- p1 + eval(parse(text=loop_input))      
+                        
+                    } else if (rsi_quantiles$RSI_q_bins[i]=="[0.6,0.8)"){
+                        
+                        loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                    "],color='lightgreen',,size=1)", sep="")
+                        p1 <- p1 + eval(parse(text=loop_input))      
+                        
+                    } else if (rsi_quantiles$RSI_q_bins[i]=="[0.8,1]"){
+                        
+                        loop_input <- paste("geom_vline(xintercept=rsi_quantiles$date[",i,
+                                    "],color='springgreen4',,size=1)", sep="")
+                        p1 <- p1 + eval(parse(text=loop_input))      
+                    }
+            }
+            }
+          
+        #MACD
+        p2 <- ggplot() +
+            geom_line(data=input2,aes(x=date,y=macd,color="red")) +
+            geom_line(data=input2,aes(x=date,y=signal,color="blue")) +
+            scale_x_bd(business.dates=input2$date, max.major.breaks=10, labels=date_format("%b '%y")) + guides(color=FALSE) + xlab("MACD") + ylab("") + theme(axis.title.x = element_blank(),axis.text.x = element_blank()) + background_grid(major = "xy",minor = "none")
+              
+        # p_test <- grid.arrange(p1,p2,heights=c(3/4,1/4))
+        p_test <- plot_grid(p1,p2,ncol=1,align='v', rel_heights = c(.75,.25)) 
+    
+        grid.arrange(g1,g2,p_test,widths=c(1/6,1/6,2/3))
     
 })
+        
 
 renderPlot({
     # try(event_chart(),silent = TRUE)
     event_chart()
 })
+
+    
 
 ```
 
@@ -1147,7 +1140,9 @@ Row {.tabset .tabset-fade}
 
 ```{r}
 
-event_summ_all <- eventReactive(input$clickMe4,{
+#DF of queried stock data
+# event_summ_all <- eventReactive(input$clickMe4,{
+event_summ_all <- reactive({
     ticker <- toupper(input$inText4)
     start_q <- input$daterange5[1]
     end_q <- input$daterange5[2]
@@ -1275,7 +1270,7 @@ event_summ_all <- eventReactive(input$clickMe4,{
     
 })
 
-
+#table for display
 event_summ_tbl <- reactive({
     
     input2 <- event_summ_all()
@@ -1395,6 +1390,65 @@ options = list(
     scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
 )
 
+#subsetted table for statistics
+event_tbl_sub <- reactive({
+    
+    event <- event_summ_tbl()[input$tbl3_rows_selected,]$event
+    
+    if(substr(event,nchar(event)-1,nchar(event))=="dn"){
+         # subset for rows with under condition
+         ###############
+        comp = substr(event,1,nchar(event)-3)
+        comp_tbl = event_summ_all() %>% filter_(paste(comp, "== 'under'"))
+        # comp_tbl = input2 %>% filter_(paste(comp, "== 'under'")) #for debugging
+        
+        comp_tbl$RSI_q_bins <- as.character(comp_tbl$RSI_q_bins)
+        comp_tbl$RSI_q_bins <- ifelse(is.na(comp_tbl$RSI_q_bins),"NULL",comp_tbl$RSI_q_bins)
+        
+        #####################
+        # create historical event_summary statistics from subset
+        #####################
+        comp_tbl %>% group_by_(event) %>%
+        summarise(min_price = min(Close),
+                  start_price = first(Close),
+                  return = round((min_price-start_price)/start_price,4),
+                  min_day = sum(which(Close == min_price)),
+                  tot_days = n(),
+                  rsi_q = first(RSI_q_bins),
+                  date = first(date)) %>% 
+            filter (return !=0) -> event_summ_tbl
+        
+    } else {
+        # subset for rows with over condition
+        #####################
+        comp = substr(event,1,nchar(event)-3)
+        comp_tbl = event_summ_all() %>% filter_(paste(comp, "== 'over'"))
+        # comp_tbl = input2 %>% filter_(paste(comp, "== 'over'")) #for debugging
+        
+        comp_tbl$RSI_q_bins <- as.character(comp_tbl$RSI_q_bins)
+        comp_tbl$RSI_q_bins <- ifelse(is.na(comp_tbl$RSI_q_bins),"NULL",comp_tbl$RSI_q_bins)
+        
+        # create historical event_summary statistics from subset
+        #####################
+        comp_tbl %>% group_by_(event) %>%
+        summarise(max_price = max(Close),
+                  start_price = first(Close),
+                  return = round((max_price-start_price)/start_price,4),
+                  max_day = sum(which(Close == max_price)),
+                  tot_days = n(),
+                  rsi_q = first(RSI_q_bins),
+                  date = first(date))  %>% 
+            filter (return !=0) -> event_summ_tbl
+        
+    }
+    
+    # filter out erroneous crosses (where opposite cross happened)
+    event_summ_tbl[[event]] <- as.numeric(row.names(event_summ_tbl))
+    event_summ_tbl[[event]] <- as.factor(event_summ_tbl[[event]])
+    
+    event_summ_tbl
+    
+})
 
 ```   
 
@@ -1527,6 +1581,31 @@ Row {.tabset .tabset-fade}
 ### Price Comparison
     
 ```{r fin-plot}
+
+#table clearning
+proxy_is = dataTableProxy('tbl_is')
+proxy_bs = dataTableProxy('tbl_bs')
+proxy_cf = dataTableProxy('tbl_cf')
+proxy_ratios_valuation = dataTableProxy('tbl_ratios_valuation')
+proxy_ratios_financial = dataTableProxy('tbl_ratios_financial')
+proxy_ratios_profitability = dataTableProxy('tbl_ratios_profitability')
+proxy_ratios_growth = dataTableProxy('tbl_ratios_growth')
+proxy_ratios_cashflow = dataTableProxy('tbl_ratios_cashflow')
+proxy_ratios_financial_health = dataTableProxy('tbl_ratios_financial_health')
+proxy_ratios_efficiency = dataTableProxy('tbl_ratios_efficiency')
+
+observeEvent(input$clear1, {
+    proxy_is %>% selectRows(NULL)
+    proxy_bs %>% selectRows(NULL)
+    proxy_cf %>% selectRows(NULL)
+    proxy_ratios_valuation %>% selectRows(NULL)
+    proxy_ratios_financial %>% selectRows(NULL)
+    proxy_ratios_profitability %>% selectRows(NULL)
+    proxy_ratios_growth %>% selectRows(NULL)
+    proxy_ratios_cashflow %>% selectRows(NULL)
+    proxy_ratios_financial_health %>% selectRows(NULL)
+    proxy_ratios_efficiency %>% selectRows(NULL)
+})
 
 # finplot <- eventReactive(input$clickMe_fins,{
 finplot <- reactive({
@@ -2108,134 +2187,6 @@ renderPlot(
 
 ```
   
-
-### Absolute Comparison
-
-```{r testing}
-
-
-# textOutput("row_txt")
-
-# dataTableOutput("selectedtbl")
-# 
-# output$selectedtbl <- renderDataTable({
-#     selectedtbl()
-# },
-# options = list(
-#     scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
-# )
-# 
-# 
-# selectedtbl <- reactive({
-# 
-#     if(!is.null(input$tbl_is_rows_selected)){
-#         tbl_is()
-#     } else
-#     if(!is.null(input$tbl_bs_rows_selected)){
-#         tbl_bs()
-#     } else
-#     if(!is.null(input$tbl_cf_rows_selected)){
-#         tbl_cf()
-#     } else 
-#     if(!is.null(input$tbl_ratios_valuation_rows_selected)){
-#         tbl_ratios_valuation()
-#     } else
-#     if(!is.null(input$tbl_ratios_financial_rows_selected)){
-#         tbl_ratios_financial()
-#     } else
-#     if(!is.null(input$tbl_ratios_profitability_rows_selected)){
-#         tbl_ratios_profitability()
-#     } else
-#     if(!is.null(input$tbl_ratios_growth_rows_selected)){
-#         tbl_ratios_growth()
-#     } else
-#     if(!is.null(input$tbl_ratios_cashflow_rows_selected)){
-#         tbl_ratios_cashflow()
-#     } else
-#     if(!is.null(input$tbl_ratios_financial_health_rows_selected)){
-#         tbl_ratios_financial_health()
-#     } else
-#     if(!is.null(input$tbl_ratios_efficiency_rows_selected)){
-#         tbl_ratios_efficiency()
-#     }
-# }    
-# )
-# 
-# renderDataTable(
-#     selected_tbl()
-# )
-
-proxy_is = dataTableProxy('tbl_is')
-proxy_bs = dataTableProxy('tbl_bs')
-proxy_cf = dataTableProxy('tbl_cf')
-proxy_ratios_valuation = dataTableProxy('tbl_ratios_valuation')
-proxy_ratios_financial = dataTableProxy('tbl_ratios_financial')
-proxy_ratios_profitability = dataTableProxy('tbl_ratios_profitability')
-proxy_ratios_growth = dataTableProxy('tbl_ratios_growth')
-proxy_ratios_cashflow = dataTableProxy('tbl_ratios_cashflow')
-proxy_ratios_financial_health = dataTableProxy('tbl_ratios_financial_health')
-proxy_ratios_efficiency = dataTableProxy('tbl_ratios_efficiency')
-
-observeEvent(input$clear1, {
-    proxy_is %>% selectRows(NULL)
-    proxy_bs %>% selectRows(NULL)
-    proxy_cf %>% selectRows(NULL)
-    proxy_ratios_valuation %>% selectRows(NULL)
-    proxy_ratios_financial %>% selectRows(NULL)
-    proxy_ratios_profitability %>% selectRows(NULL)
-    proxy_ratios_growth %>% selectRows(NULL)
-    proxy_ratios_cashflow %>% selectRows(NULL)
-    proxy_ratios_financial_health %>% selectRows(NULL)
-    proxy_ratios_efficiency %>% selectRows(NULL)
-})
-
-```
-
-### Debugging
-
-```{r adasda}
-
-# lol <- reactive(
-#     if(!is.null(input$tbl_is_rows_selected)){
-#         row <- input$tbl_is_rows_selected
-#     } else
-#     if(!is.null(input$tbl_bs_rows_selected)){
-#         row <- input$tbl_bs_rows_selected
-#     } else
-#     if(!is.null(input$tbl_cf_rows_selected)){
-#         row <- input$tbl_cf_rows_selected
-#     } else 
-#     if(!is.null(input$tbl_ratios_valuation_rows_selected)){
-#         row <- input$tbl_ratios_valuation_rows_selected
-#     } else
-#     if(!is.null(input$tbl_ratios_financial_rows_selected)){
-#         row <- input$tbl_ratios_financial_rows_selected
-#     } else
-#     if(!is.null(input$tbl_ratios_profitability_rows_selected)){
-#         row <- input$tbl_ratios_profitability_rows_selected
-#     } else
-#     if(!is.null(input$tbl_ratios_growth_rows_selected)){
-#         row <- input$tbl_ratios_growth_rows_selected
-#     } else
-#     if(!is.null(input$tbl_ratios_cashflow_rows_selected)){
-#         row <- input$tbl_ratios_cashflow_rows_selected
-#     } else
-#     if(!is.null(input$tbl_ratios_financial_health_rows_selected)){
-#         row <- input$tbl_ratios_financial_health_rows_selected
-#     } else
-#     if(!is.null(input$tbl_ratios_efficiency_rows_selected)){
-#         row <- input$tbl_ratios_efficiency_rows_selected
-#     }
-#     # row
-# )
-# 
-# renderText(
-#     lol()
-#     # input$selectedtbl_rows_selected
-# )
-
-```
-
 Row {.tabset .tabset-fade}
 -------------------------------------
 
