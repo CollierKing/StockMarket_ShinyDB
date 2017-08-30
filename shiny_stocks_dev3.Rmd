@@ -10,6 +10,8 @@ runtime: shiny
 
 ```{r global, include=FALSE}
 # library(readr)
+
+library(flexdashboard)
 library(DT)
 library(dplyr)
 library(tidyr)
@@ -30,7 +32,6 @@ library(grid)
 library(cowplot)
 library(RCurl)
 library(htmlwidgets)
-library(flexdashboard)
 
 g_file_txt <- getURL("https://raw.githubusercontent.com/CollierKing/StockMarket_ShinyDB/master/all_trades.csv")
 
@@ -43,6 +44,13 @@ g_file$TradeDate <- as.Date(g_file$TradeDate)
 #   # stop("Waiting for user to load data..")
 #     stop("")
 # })
+
+#wip
+## define global DT options
+
+# options(DT.options = list(pageLength = 100,
+#                           scrollY="300px",paging=FALSE,selection="single",scrollX = TRUE))
+
 
 ## Define Functions - Ticker Query
 tickerQuery <- function(ticker,time_frame){
@@ -383,8 +391,6 @@ output$earnings <- renderUI({
 htmlOutput("earnings")
 
 ```
-
-
 
 Row
 -----------------------------------------------------------------------
@@ -1271,6 +1277,7 @@ event_summ_all <- reactive({
 })
 
 #table for display
+## this chunk contains calculations for the clickable table
 event_summ_tbl <- reactive({
     
     input2 <- event_summ_all()
@@ -1316,7 +1323,8 @@ event_summ_tbl <- reactive({
             # subset for rows with under condition
             #####################
             comp = substr(event,1,nchar(event)-3)
-            comp_tbl = input2 %>% filter_(paste(comp, "== 'under'"))
+            comp_tbl = input2 %>% filter_(paste(comp, "== 'under'")) %>%
+                filter_(paste(event, "!= '0'"))
             #####################
             # create historical event_summary statistics from subset
             #####################
@@ -1335,7 +1343,8 @@ event_summ_tbl <- reactive({
             # subset for rows with over condition
             #####################
             comp = substr(event,1,nchar(event)-3)
-            comp_tbl = input2 %>% filter_(paste(comp, "== 'over'"))
+            comp_tbl = input2 %>% filter_(paste(comp, "== 'over'")) %>%
+                filter_(paste(event, "!= '0'"))
             # create historical event_summary statistics from subset
             #####################
             comp_tbl %>% group_by_(event) %>%
@@ -1384,13 +1393,42 @@ event_summ_tbl <- reactive({
 
 dataTableOutput("tbl3")
 output$tbl3 <- renderDataTable({
-    event_summ_tbl()
-},
-options = list(
-    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
-)
-
+    
+# event_summ_tbl()
+# },
+# options = list(
+#     scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+# )
+    #wip - adding exporting and conditional formatting
+    
+datatable(event_summ_tbl(),
+           extensions = 'Buttons', options = list(scrollX = TRUE,
+        dom = 'Bfrtip',buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),scrollY = '300px'), selection = 'single')  %>%
+        formatStyle(
+        'avg_farthest_return',
+        background = styleColorBar(
+                  range(event_summ_tbl()[,c("avg_farthest_return")]), 'lightgreen'),
+              backgroundSize = '98% 88%',
+              backgroundRepeat = 'no-repeat',
+              backgroundPosition = 'center')
+    %>%
+        formatStyle(
+        'total_occurances',
+            background = styleColorBar(
+                range(event_summ_tbl()[,c("total_occurances")]), 'lightblue'),
+            backgroundSize = '98% 88%',
+            backgroundRepeat = 'no-repeat',
+            backgroundPosition = 'center') %>%
+        formatStyle(
+        'avg_farthest_day',
+            background = styleColorBar(
+                range(event_summ_tbl()[,c("avg_farthest_day")]), 'red'),
+            backgroundSize = '98% 88%',
+            backgroundRepeat = 'no-repeat',
+            backgroundPosition = 'center')
+})
 #subsetted table for statistics
+## this chunk contains calculations for charts which were created when display table row was clicked
 event_tbl_sub <- reactive({
     
     event <- event_summ_tbl()[input$tbl3_rows_selected,]$event
@@ -1399,7 +1437,9 @@ event_tbl_sub <- reactive({
          # subset for rows with under condition
          ###############
         comp = substr(event,1,nchar(event)-3)
-        comp_tbl = event_summ_all() %>% filter_(paste(comp, "== 'under'"))
+        comp_tbl = event_summ_all() %>% filter_(paste(comp, "== 'under'")) %>%
+                filter_(paste(event, "!= '0'")) #filter out a false zero event where the MA or indicator calculation appeared
+        
         # comp_tbl = input2 %>% filter_(paste(comp, "== 'under'")) #for debugging
         
         comp_tbl$RSI_q_bins <- as.character(comp_tbl$RSI_q_bins)
@@ -1422,7 +1462,7 @@ event_tbl_sub <- reactive({
         # subset for rows with over condition
         #####################
         comp = substr(event,1,nchar(event)-3)
-        comp_tbl = event_summ_all() %>% filter_(paste(comp, "== 'over'"))
+        comp_tbl = event_summ_all() %>% filter_(paste(comp, "== 'over'"))  %>%      filter_(paste(event, "!= '0'")) #filter out a false zero event where the MA or indicator calculation appeared
         # comp_tbl = input2 %>% filter_(paste(comp, "== 'over'")) #for debugging
         
         comp_tbl$RSI_q_bins <- as.character(comp_tbl$RSI_q_bins)
