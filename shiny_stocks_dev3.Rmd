@@ -1394,39 +1394,38 @@ event_summ_tbl <- reactive({
 dataTableOutput("tbl3")
 output$tbl3 <- renderDataTable({
     
-# event_summ_tbl()
-# },
-# options = list(
-#     scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
-# )
+event_summ_tbl()
+},
+options = list(
+    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+)
     #wip - adding exporting and conditional formatting
     
-datatable(event_summ_tbl(),
-           extensions = 'Buttons', options = list(scrollX = TRUE,
-        dom = 'Bfrtip',buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),scrollY = '300px'), selection = 'single')  %>%
-        formatStyle(
-        'avg_farthest_return',
-        background = styleColorBar(
-                  range(event_summ_tbl()[,c("avg_farthest_return")]), 'lightgreen'),
-              backgroundSize = '98% 88%',
-              backgroundRepeat = 'no-repeat',
-              backgroundPosition = 'center')
-    %>%
-        formatStyle(
-        'total_occurances',
-            background = styleColorBar(
-                range(event_summ_tbl()[,c("total_occurances")]), 'lightblue'),
-            backgroundSize = '98% 88%',
-            backgroundRepeat = 'no-repeat',
-            backgroundPosition = 'center') %>%
-        formatStyle(
-        'avg_farthest_day',
-            background = styleColorBar(
-                range(event_summ_tbl()[,c("avg_farthest_day")]), 'red'),
-            backgroundSize = '98% 88%',
-            backgroundRepeat = 'no-repeat',
-            backgroundPosition = 'center')
-})
+# datatable(event_summ_tbl(),
+#            extensions = 'Buttons', options = list(scrollX = TRUE,
+#         dom = 'Bfrtip',buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),scrollY = '300px'), selection = 'single')  %>%
+#         formatStyle(
+#         'avg_farthest_return',
+#         background = styleColorBar(
+#                   range(event_summ_tbl()[,c("avg_farthest_return")]), 'lightgreen'),
+#               backgroundSize = '98% 88%',
+#               backgroundRepeat = 'no-repeat',
+#               backgroundPosition = 'center') %>%
+#         formatStyle(
+#         'total_occurances',
+#             background = styleColorBar(
+#                 range(event_summ_tbl()[,c("total_occurances")]), 'lightblue'),
+#             backgroundSize = '98% 88%',
+#             backgroundRepeat = 'no-repeat',
+#             backgroundPosition = 'center') %>%
+#         formatStyle(
+#         'avg_farthest_day',
+#             background = styleColorBar(
+#                 range(event_summ_tbl()[,c("avg_farthest_day")]), 'red'),
+#             backgroundSize = '98% 88%',
+#             backgroundRepeat = 'no-repeat',
+#             backgroundPosition = 'center')
+# })
 #subsetted table for statistics
 ## this chunk contains calculations for charts which were created when display table row was clicked
 event_tbl_sub <- reactive({
