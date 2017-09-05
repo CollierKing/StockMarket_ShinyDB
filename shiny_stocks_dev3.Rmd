@@ -996,10 +996,10 @@ event_chart <- reactive({
         day_sd_current_rsi <- sd(event_summ_tbl_current_q$max_day)
         #####################
         g1 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = return,fill=rsi_q)) +
-          geom_bar(stat = "identity",alpha = 0.7) + ggtitle(paste0("Max_Return: ",event)) + coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) + scale_fill_manual(values = c("[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4")) + xlab("") +ylab("") + theme(legend.position="none")
+          geom_bar(stat = "identity",alpha = 0.7) + ggtitle(paste0("Max_Return: ",event)) + coord_flip() +  scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) + scale_fill_manual(values = c("NULL"="grey","[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4")) + xlab("") +ylab("") + theme(legend.position="none")
 
         g2 <- ggplot(data = event_summ_tbl, aes(x = event_summ_tbl[,1], y = max_day, fill=rsi_q)) +
-            geom_bar(stat = "identity",alpha = 0.7) + ggtitle(paste0("Max_Day: ",event)) + coord_flip() + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) + scale_fill_manual(values = c("[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4")) + xlab("") +ylab("") + theme(legend.position="none")
+            geom_bar(stat = "identity",alpha = 0.7) + ggtitle(paste0("Max_Day: ",event)) + coord_flip() + scale_x_discrete(limits = rev(levels(event_summ_tbl[,1]))) + scale_fill_manual(values = c("NULL"="grey","[0,0.2)" = "tomato1", "[0.2,0.4)" = "orange", "[0.4,0.6)" = "gold2", "[0.6,0.8)" = "lightgreen", "[0.8,1]" = "springgreen4")) + xlab("") +ylab("") + theme(legend.position="none")
         
         #####################
         
@@ -1339,6 +1339,9 @@ event_summ_tbl <- reactive({
                       avg_min_return = mean(return,na.rm=TRUE),
                       avg_min_day = mean(min_day),
                       avg_tot_days = mean(tot_days)) -> summ_tbl
+        # summ_tbl %>%
+        # filter (total_occurances>0) -> summ_tbl
+            
         } else {
             # subset for rows with over condition
             #####################
@@ -1358,6 +1361,8 @@ event_summ_tbl <- reactive({
                       avg_max_return = mean(return,na.rm=TRUE),
                       avg_max_day = mean(max_day),
                       avg_tot_days = mean(tot_days)) -> summ_tbl
+        # summ_tbl %>%
+        # filter (total_occurances>0) -> summ_tbl
         }    
         # create current condition summary
         # current condition
@@ -1389,43 +1394,48 @@ event_summ_tbl <- reactive({
         event_summary[,10] <- NULL
         event_summary %>% arrange(days_since_event) -> event_summary
         event_summary
+        
+        #filter out events which never happened
+        event_summary %>%
+            filter(total_occurances!=0) -> event_summary
+        
     })
 
 dataTableOutput("tbl3")
 output$tbl3 <- renderDataTable({
     
-event_summ_tbl()
-},
-options = list(
-    scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
-)
+# event_summ_tbl()
+# },
+# options = list(
+#     scrollY = '300px', paging = FALSE, scrollX = TRUE),selection='single'
+# )
     #wip - adding exporting and conditional formatting
     
-# datatable(event_summ_tbl(),
-#            extensions = 'Buttons', options = list(scrollX = TRUE,
-#         dom = 'Bfrtip',buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),scrollY = '300px'), selection = 'single')  %>%
-#         formatStyle(
-#         'avg_farthest_return',
-#         background = styleColorBar(
-#                   range(event_summ_tbl()[,c("avg_farthest_return")]), 'lightgreen'),
-#               backgroundSize = '98% 88%',
-#               backgroundRepeat = 'no-repeat',
-#               backgroundPosition = 'center') %>%
-#         formatStyle(
-#         'total_occurances',
-#             background = styleColorBar(
-#                 range(event_summ_tbl()[,c("total_occurances")]), 'lightblue'),
-#             backgroundSize = '98% 88%',
-#             backgroundRepeat = 'no-repeat',
-#             backgroundPosition = 'center') %>%
-#         formatStyle(
-#         'avg_farthest_day',
-#             background = styleColorBar(
-#                 range(event_summ_tbl()[,c("avg_farthest_day")]), 'red'),
-#             backgroundSize = '98% 88%',
-#             backgroundRepeat = 'no-repeat',
-#             backgroundPosition = 'center')
-# })
+datatable(event_summ_tbl(),
+           extensions = 'Buttons', options = list(scrollX = TRUE,
+        dom = 'Bfrtip',buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),scrollY = '300px'), selection = 'single')  %>%
+        formatStyle(
+        'avg_farthest_return',
+        background = styleColorBar(
+                  range(event_summ_tbl()[,c("avg_farthest_return")]), 'lightgreen'),
+              backgroundSize = '98% 88%',
+              backgroundRepeat = 'no-repeat',
+              backgroundPosition = 'center') %>%
+        formatStyle(
+        'total_occurances',
+            background = styleColorBar(
+                range(event_summ_tbl()[,c("total_occurances")]), 'lightblue'),
+            backgroundSize = '98% 88%',
+            backgroundRepeat = 'no-repeat',
+            backgroundPosition = 'center') %>%
+        formatStyle(
+        'avg_farthest_day',
+            background = styleColorBar(
+                range(event_summ_tbl()[,c("avg_farthest_day")]), 'red'),
+            backgroundSize = '98% 88%',
+            backgroundRepeat = 'no-repeat',
+            backgroundPosition = 'center')
+})
 #subsetted table for statistics
 ## this chunk contains calculations for charts which were created when display table row was clicked
 event_tbl_sub <- reactive({
@@ -1461,7 +1471,9 @@ event_tbl_sub <- reactive({
         # subset for rows with over condition
         #####################
         comp = substr(event,1,nchar(event)-3)
-        comp_tbl = event_summ_all() %>% filter_(paste(comp, "== 'over'"))  %>%      filter_(paste(event, "!= '0'")) #filter out a false zero event where the MA or indicator calculation appeared
+        comp_tbl = event_summ_all() %>%
+            # comp_tbl = input2 %>%
+            filter_(paste(comp, "== 'over'"))  %>%      filter_(paste(event, "!= '0'")) #filter out a false zero event where the MA or indicator calculation appeared
         # comp_tbl = input2 %>% filter_(paste(comp, "== 'over'")) #for debugging
         
         comp_tbl$RSI_q_bins <- as.character(comp_tbl$RSI_q_bins)
