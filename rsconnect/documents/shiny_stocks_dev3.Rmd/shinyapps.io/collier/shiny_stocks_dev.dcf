@@ -1,10 +1,10 @@
 name: shiny_stocks_dev
-title: shiny_stocks_dev
+title:
 account: collier
 server: shinyapps.io
 appId: 205806
-bundleId: 956062
+bundleId: 1028295
 url: https://collier.shinyapps.io/shiny_stocks_dev/
-when: 1503815074.9334
+when: 1508128990.77898
 asMultiple: FALSE
 asStatic: FALSE

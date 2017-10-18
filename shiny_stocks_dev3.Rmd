@@ -40,10 +40,10 @@ g_file <- read.csv(text=g_file_txt,stringsAsFactors = FALSE)
 g_file$TradeDate <- as.Date(g_file$TradeDate)
 
 
-# options(shiny.error = function() {
-#   # stop("Waiting for user to load data..")
-#     stop("")
-# })
+options(shiny.error = function() {
+  # stop("Waiting for user to load data..")
+    stop("")
+})
 
 #wip
 ## define global DT options
