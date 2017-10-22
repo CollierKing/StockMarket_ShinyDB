@@ -11,6 +11,7 @@ runtime: shiny
 ```{r global, include=FALSE}
 # library(readr)
 
+
 library(flexdashboard)
 library(DT)
 library(dplyr)
@@ -40,10 +41,15 @@ g_file <- read.csv(text=g_file_txt,stringsAsFactors = FALSE)
 g_file$TradeDate <- as.Date(g_file$TradeDate)
 
 
-options(shiny.error = function() {
-  # stop("Waiting for user to load data..")
-    stop("")
-})
+# options(shiny.error = function() {
+#   # stop("Waiting for user to load data..")
+#     stop("")
+# })
+
+# options(shiny.sanitize.errors = FALSE)
+
+# options(shiny.error = FALSE)
+
 
 #wip
 ## define global DT options
@@ -145,55 +151,6 @@ tickerQuery <- function(ticker,time_frame){
 
 ```
 
-Home
-=====================================  
-
-Welcome to the stock screener dashboard.  This tool's functionality includes:
-
-#### Options Activity Tracking & Aggregation
-
-    Option Trade Activity is gathered from Twitter on a daily basis.  Trade information is aggregated and summarized by ticker and captures the following:
-        * Trade Date
-        * Option Type (ie: Call/Put)
-        * Activity Type (ie: Buying/Selling)
-        * Strike Price
-        * Expiration Date
-        * Initial Contract Volume
-        * Earnings Date (if available)
-
-#### Charting for Technical Analysis
-
-    A candlestick chart is constructed for selected ticker over selected time period. Features include:
-    
-        * Technical Indicators
-            * Simple Moving Averages, Bollinger Bands, MACD, RSI, Rolling Volatility
-        
-        * Intra-Chart Event Flags
-            * Price/Moving Average Crosses
-            * MACD Crosses
-            * Candlestick Patterns
-                * Morning/Evening Star, Bullishing/Bearish Engulfing, etc..
-            
-
-#### Future Historical Returns across Price Distributions
-
-    This page attempts to show the overall risk/reward of a stock given its present price range within the distribution of its historical technical indicator values.
-        * Future returns are calculated for particular quantile ranges of technical indicators (ie: Price % above/below 9SMA)
-        * Future returns are extrapolated across days in the future (ie: 10 days, 50 days out)
-    
-#### Historical Returns after Events
-
-    A distribution (and mean & standard deviation) of returns for a stock when it undergoes an event (ie: MACD Cross Upward).  A distribution of returns during an event is provided for the selected date interval.  
-
-#### Historical Returns after Events across Price Distributions
-
-    The same as above section, however controls for events which have taken place within the stock's current price/indicator distribution.  This is a combination of the prior two sections.
-
-#### Fundamental Analysis Snapshot
-
-    Provides a high level summary of a stock's financials.  
-    
-
 Options Activity
 =====================================  
 
@@ -233,6 +190,7 @@ selectedData_src <- reactive({
 })
 
 selectedData <- reactive({
+    
     selectedData_src() %>%
         group_by(Ticker) %>%
         summarise(
@@ -312,6 +270,10 @@ renderGauge({
 
 output$stock_link <- renderUI({
     
+        validate(
+          need(input$inText != "" | input$tbl1_rows_selected != "", "Please select or enter a ticker")
+        )
+    
         if (nchar(input$inText)<1){
             
             row_selected <- input$tbl1_rows_selected
@@ -331,6 +293,10 @@ output$stock_link <- renderUI({
 htmlOutput("stock_link")
 
 output$eps_link <- renderUI({
+    
+    validate(
+          need(input$inText != "" | input$tbl1_rows_selected != "", "Please select or enter a ticker")
+        )
     
         if (nchar(input$inText)<1){
             
@@ -352,6 +318,10 @@ htmlOutput("eps_link")
 
 output$inst_activity <- renderUI({
     
+    validate(
+          need(input$inText != "" | input$tbl1_rows_selected != "", "Please select or enter a ticker")
+        )
+    
         if (nchar(input$inText)<1){
             
             row_selected <- input$tbl1_rows_selected
@@ -371,6 +341,10 @@ output$inst_activity <- renderUI({
 htmlOutput("inst_activity")
 
 output$earnings <- renderUI({
+    
+    validate(
+          need(input$inText != "" | input$tbl1_rows_selected != "", "Please select or enter a ticker")
+        )
     
         if (nchar(input$inText)<1){
             
@@ -434,6 +408,11 @@ Row
 
 selectedData2 <- reactive({
     
+    validate(
+      need(input$inText != "" | input$tbl1_rows_selected != "", "Please select or enter a ticker")
+    )
+    
+    
     #View Activity via table selection
     if (nchar(input$inText)<1){
         
@@ -471,6 +450,13 @@ options = list(
 ```{r chart of selected ticker}
 
 chart <- reactive({
+    
+    validate(
+      need(input$inText != "" | input$tbl1_rows_selected != "", "Please select or enter a ticker")
+    )
+    
+    
+    
     ##################### 
     if (nchar(input$inText)<1){
         row_selected <- input$tbl1_rows_selected
@@ -884,6 +870,14 @@ Row
 
 event_chart <- reactive({
     
+    validate(
+      need(input$inText4 != "", "Please enter a ticker")
+    )
+    
+    validate(
+      need(input$tbl3_rows_selected != "", "Please select an event in the Event Summary table.")
+    )
+    
     event <- event_summ_tbl()[input$tbl3_rows_selected,]$event
     
     if(substr(event,nchar(event)-1,nchar(event))=="dn"){
@@ -1149,6 +1143,11 @@ Row {.tabset .tabset-fade}
 #DF of queried stock data
 # event_summ_all <- eventReactive(input$clickMe4,{
 event_summ_all <- reactive({
+    
+    validate(
+      need(input$inText4 != "", "Please enter a ticker")
+    )
+    
     ticker <- toupper(input$inText4)
     start_q <- input$daterange5[1]
     end_q <- input$daterange5[2]
@@ -1279,6 +1278,10 @@ event_summ_all <- reactive({
 #table for display
 ## this chunk contains calculations for the clickable table
 event_summ_tbl <- reactive({
+    
+    validate(
+      need(input$inText4 != "", "Please enter a ticker")
+    )
     
     input2 <- event_summ_all()
     
@@ -1440,6 +1443,10 @@ datatable(event_summ_tbl(),
 ## this chunk contains calculations for charts which were created when display table row was clicked
 event_tbl_sub <- reactive({
     
+    validate(
+      need(input$tbl3_rows_selected != "", "Please select an event in the Event Summary table.")
+    )
+    
     event <- event_summ_tbl()[input$tbl3_rows_selected,]$event
     
     if(substr(event,nchar(event)-1,nchar(event))=="dn"){
@@ -1503,13 +1510,6 @@ event_tbl_sub <- reactive({
 
 ```   
 
-
-### Current Distribution + Event Summary
-    
-```{r}
-
-
-```
 
 Fundamentals
 =====================================  
@@ -2563,55 +2563,4 @@ options = list(
 )
 
 ```
-
-TO DO LIST
-=====================================  
-
-Options Activity
-* Add color bars to tables?
-* Add export buttons to tables?
-    
-Technicals - Chart
-    * Add more date tick-mark intervals to X axis
-    * Add current value marker on far right
-    * Add checkmark option to include/exclude TA indicators
-    * Add legend for top indicators
-    * Add checkmark option to HL events
-    * Add checkmark to show option trades
-    * Add option to choose weekly candle option
-    * Add tooltip hovering?
-
-
-Technicals - Events
-    * Revise cross event logic to not double count cross (pos + neg)
-        - Fixed 7/26
-    * Add legend for colors to sidebar
-    * Add mean/sd line/interval on chart
-    * Fix cross logic to not count days where the moving average was NA
-    * Add events to chart
-        * check why some recent weekly events not showing up
-            ex: ma21_cross_9_dn (GS)
-            ex: price cross 21 up (GS)
-        
-        
-    * add color/value bars to table?
-    * Re-word following columns:
-        * avg_farthest_return
-        * avg_farthest_day
-        * avg_recross_days
-        * tot_occurances
-        * current_condition
-        * days_since_event
-        * return_since_event
-    
-Fundamentals
-    * some ratios are not showing up for certain tickers
-        - aapl (valuation & efficiency)
-    
-To candlestick charts
-    * Add comparisons vs INDEX or another stock
-    
-
-
-
 

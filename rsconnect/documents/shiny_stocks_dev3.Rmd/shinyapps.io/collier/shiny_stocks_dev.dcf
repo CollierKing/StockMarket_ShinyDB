@@ -3,8 +3,8 @@ title:
 account: collier
 server: shinyapps.io
 appId: 205806
-bundleId: 1028295
+bundleId: 1038704
 url: https://collier.shinyapps.io/shiny_stocks_dev/
-when: 1508128990.77898
+when: 1508641048.87267
 asMultiple: FALSE
 asStatic: FALSE
