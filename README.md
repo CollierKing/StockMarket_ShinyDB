@@ -1,2 +1,2 @@
 # StockMarket_ShinyDB
-A repository for public-facing datasets
+A Staistical Analysis and Visualization Dashboard for Stocks.
